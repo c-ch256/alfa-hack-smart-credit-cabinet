@@ -1,43 +1,56 @@
-# Backend: этап 3
+# Backend: FastAPI и PostgreSQL
 
-Минимальный FastAPI-сервис на Python 3.12. Пока есть только `GET /health` и локальный Swagger `/docs`. БД, авторизация, скоринг и кредитные правила не реализованы. Данные не используются.
+Python 3.12, FastAPI, PostgreSQL 16, SQLAlchemy 2.0 и Alembic. Сейчас реализованы только `/health`, `/ready`, конфигурация БД и пустая первая миграция. Бизнес-таблиц, авторизации и кредитной логики пока нет. `/health` проверяет процесс API; `/ready` делает `SELECT 1` в БД и возвращает 503 при недоступности без деталей подключения.
 
-## Локальный запуск
+## Запуск через Docker Compose
 
-Из корня репозитория, в подготовленном окружении `craftors-backend`:
+Из корня репозитория:
+
+```bash
+cp .env.example .env
+# Задайте в .env собственный DB_PASSWORD; оставлять его пустым нельзя.
+docker compose up --build
+```
+
+После первого запуска: `http://127.0.0.1:8000/health`, `http://127.0.0.1:8000/ready`, Swagger `http://127.0.0.1:8000/docs`. Compose не публикует порт PostgreSQL, API доступен только на localhost. Данные БД сохраняются в именованном volume `postgres_data`; обычный `docker compose down` его не удаляет. API работает без root и запускает `alembic upgrade head` перед Uvicorn. При ошибке миграции контейнер API не стартует.
+
+Проверка состояния и текущей миграции:
+
+```bash
+docker compose ps
+docker compose exec api alembic -c alembic.ini current
+```
+
+## Локальная разработка в Conda
+
+Все установки и проверки выполняйте только в окружении `craftors-backend`:
 
 ```bash
 conda run -n craftors-backend python -m pip install -r backend/requirements-dev.lock
-cd backend
+```
+
+Настройки читаются из env. `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` собираются в PostgreSQL URL с драйвером psycopg; полный `DATABASE_URL` имеет приоритет. Для локального запуска вне Compose экспортируйте нужные переменные из своего `.env` и запустите команды из `backend/`:
+
+```bash
+conda run -n craftors-backend alembic -c alembic.ini upgrade head
 conda run -n craftors-backend uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-Проверка: `http://127.0.0.1:8000/health` возвращает `{"status":"ok"}`; Swagger доступен по `http://127.0.0.1:8000/docs`.
+Без работающей БД `/health` остаётся доступным, а `/ready` возвращает 503. Текущий локальный Swagger — `/docs`; публичный префикс `/api` через nginx относится к следующему этапу. В production дополнительно обязательны `APP_ENV=production`, `APP_DOCS_ENABLED=false`, явный `APP_ALLOWED_HOSTS` и непустые учётные данные БД. Не публикуйте PostgreSQL наружу и не печатайте переменные с паролем или полный `DATABASE_URL`.
 
-Проверки из каталога `backend`:
+## Проверки
+
+Из `backend/`:
 
 ```bash
 conda run -n craftors-backend python -m pytest -q
-conda run -n craftors-backend ruff check app tests
-conda run -n craftors-backend ruff format --check app tests
+conda run -n craftors-backend ruff check app tests alembic
+conda run -n craftors-backend ruff format --check app tests alembic
+conda run -n craftors-backend alembic -c alembic.ini heads
+conda run -n craftors-backend alembic -c alembic.ini upgrade head --sql
 conda run -n craftors-backend python -m pip_audit --no-deps --disable-pip -r requirements-dev.lock
 ```
 
-## Конфигурация
+Пустая миграция создаёт только служебную таблицу `alembic_version`. Проверка `--sql` не требует БД; фактическое применение проверяется через Compose.
 
-Параметры читаются из переменных окружения с префиксом `APP_`. По умолчанию: `APP_ENV=local`, отладка выключена, разрешены только хосты `localhost`, `127.0.0.1`, `testserver`, CORS выключен. Списки передаются как JSON-массивы, например `APP_ALLOWED_HOSTS='["api.example.test"]'`.
-
-Для `APP_ENV=production` обязательно явно задать `APP_DOCS_ENABLED=false` и `APP_ALLOWED_HOSTS` без локальных адресов. `APP_DEBUG=true`, wildcard-хосты и CORS без HTTPS отклоняются при старте. Если frontend размещён отдельно, задайте только конкретные HTTPS origin через `APP_CORS_ORIGINS`; по умолчанию CORS не включён. Публикуйте сервис за TLS-терминатором.
-
-## Docker
-
-Образ использует Python 3.12.14 и устанавливает только `requirements.lock` с точными версиями всех зависимостей:
-
-```bash
-docker build -t smart-credit-backend:local backend
-docker run --rm -p 127.0.0.1:8000:8000 smart-credit-backend:local
-```
-
-Контейнер запускается непривилегированным пользователем. Для публичного размещения задайте строгие production-переменные и TLS на внешней границе; локальный запуск выше предназначен только для разработки.
-
-Зависимости объявлены в `pyproject.toml`, точные транзитивные версии закреплены в `requirements.lock` и `requirements-dev.lock`. После изменения зависимостей обновляйте оба файла в Python 3.12 через `pip-compile` в `craftors-backend`, затем запускайте все проверки. Хеши пакетов пока не закреплены; доверенная загрузка из индекса и аудит зависимостей остаются обязательными.
+Зависимости объявлены в `pyproject.toml`; runtime и dev версии зафиксированы в `requirements.lock` и `requirements-dev.lock`. После изменения зависимостей пересобирайте оба lock-файла через `pip-compile` под Python 3.12 в `craftors-backend` и повторяйте проверки. Хеши пакетов пока не закреплены.

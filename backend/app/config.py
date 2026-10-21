@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -14,6 +14,12 @@ class Settings(BaseSettings):
         default_factory=lambda: ['localhost', '127.0.0.1', 'testserver']
     )
     cors_origins: list[str] = Field(default_factory=list)
+    database_url: SecretStr | None = Field(default=None, validation_alias='DATABASE_URL')
+    db_host: str = Field(default='localhost', min_length=1, validation_alias='DB_HOST')
+    db_port: int = Field(default=5432, ge=1, le=65535, validation_alias='DB_PORT')
+    db_name: str = Field(default='credit_cabinet', min_length=1, validation_alias='DB_NAME')
+    db_user: str = Field(default='credit_app', min_length=1, validation_alias='DB_USER')
+    db_password: SecretStr | None = Field(default=None, validation_alias='DB_PASSWORD')
 
     @field_validator('allowed_hosts')
     @classmethod
@@ -41,4 +47,6 @@ class Settings(BaseSettings):
             raise ValueError('production requires non-local allowed_hosts')
         if any(not origin.startswith('https://') for origin in self.cors_origins):
             raise ValueError('production requires HTTPS CORS origins')
+        if self.database_url is None and self.db_password is None:
+            raise ValueError('production requires database credentials')
         return self

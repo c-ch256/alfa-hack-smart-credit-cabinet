@@ -28,3 +28,6 @@ coverage/
 # Database
 *.sqlite3
 *.db
+*.dump
+*.pgpass
+postgres-data/
