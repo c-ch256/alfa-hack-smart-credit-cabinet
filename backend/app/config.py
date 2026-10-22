@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix='APP_', extra='forbid')
+    model_config = SettingsConfigDict(env_prefix='APP_', extra='forbid', hide_input_in_errors=True)
 
     env: Literal['local', 'test', 'production'] = 'local'
     debug: bool = False
@@ -20,6 +20,29 @@ class Settings(BaseSettings):
     db_name: str = Field(default='credit_cabinet', min_length=1, validation_alias='DB_NAME')
     db_user: str = Field(default='credit_app', min_length=1, validation_alias='DB_USER')
     db_password: SecretStr | None = Field(default=None, validation_alias='DB_PASSWORD')
+    jwt_secret: SecretStr | None = Field(default=None, validation_alias='JWT_SECRET')
+    jwt_issuer: str = Field(
+        default='craftors-credit-api', min_length=1, validation_alias='JWT_ISSUER'
+    )
+    jwt_audience: str = Field(
+        default='craftors-credit-cabinet', min_length=1, validation_alias='JWT_AUDIENCE'
+    )
+    jwt_ttl_minutes: int = Field(default=60, ge=1, le=480, validation_alias='JWT_TTL_MINUTES')
+    demo_password: SecretStr | None = Field(default=None, validation_alias='DEMO_PASSWORD')
+
+    @field_validator('jwt_secret')
+    @classmethod
+    def validate_jwt_secret(cls, secret: SecretStr | None) -> SecretStr | None:
+        if secret is not None and len(secret.get_secret_value().encode('utf-8')) < 32:
+            raise ValueError('JWT_SECRET must contain at least 32 bytes')
+        return secret
+
+    @field_validator('demo_password')
+    @classmethod
+    def validate_demo_password(cls, password: SecretStr | None) -> SecretStr | None:
+        if password is not None and len(password.get_secret_value()) < 12:
+            raise ValueError('DEMO_PASSWORD must contain at least 12 characters')
+        return password
 
     @field_validator('allowed_hosts')
     @classmethod
@@ -49,4 +72,6 @@ class Settings(BaseSettings):
             raise ValueError('production requires HTTPS CORS origins')
         if self.database_url is None and self.db_password is None:
             raise ValueError('production requires database credentials')
+        if self.jwt_secret is None:
+            raise ValueError('production requires JWT_SECRET')
         return self

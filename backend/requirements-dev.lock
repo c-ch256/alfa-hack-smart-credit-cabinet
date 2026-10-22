@@ -14,6 +14,10 @@ anyio==4.15.1
     # via
     #   httpx
     #   starlette
+argon2-cffi==25.1.0
+    # via smart-credit-cabinet-backend (backend/pyproject.toml)
+argon2-cffi-bindings==26.1.0
+    # via argon2-cffi
 boolean-py==5.0
     # via license-expression
 cachecontrol[filecache]==0.14.4
@@ -25,6 +29,8 @@ certifi==2026.10.19
     #   httpcore
     #   httpx
     #   requests
+cffi==2.1.1
+    # via argon2-cffi-bindings
 charset-normalizer==3.5.2
     # via requests
 click==8.5.0
@@ -91,6 +97,8 @@ psycopg-binary==3.3.6
     # via psycopg
 py-serializable==2.1.0
     # via cyclonedx-python-lib
+pycparser==3.12
+    # via cffi
 pydantic==2.14.1
     # via
     #   fastapi
@@ -103,6 +111,8 @@ pygments==2.21.0
     # via
     #   pytest
     #   rich
+pyjwt==2.15.1
+    # via smart-credit-cabinet-backend (backend/pyproject.toml)
 pyparsing==3.3.3
     # via pip-requirements-parser
 pytest==9.0.3

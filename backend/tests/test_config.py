@@ -56,6 +56,7 @@ def test_production_disables_docs_and_rejects_other_origins() -> None:
         allowed_hosts=['api.example.test'],
         cors_origins=['https://web.example.test'],
         db_password='synthetic-test-password',
+        jwt_secret='synthetic-test-jwt-secret-at-least-32-bytes',
     )
 
     async def check() -> None:

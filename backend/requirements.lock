@@ -12,6 +12,12 @@ annotated-types==0.8.0
     # via pydantic
 anyio==4.15.1
     # via starlette
+argon2-cffi==25.1.0
+    # via smart-credit-cabinet-backend (backend/pyproject.toml)
+argon2-cffi-bindings==26.1.0
+    # via argon2-cffi
+cffi==2.1.1
+    # via argon2-cffi-bindings
 click==8.5.0
     # via uvicorn
 fastapi==0.156.4
@@ -32,6 +38,8 @@ psycopg[binary]==3.3.6
     # via smart-credit-cabinet-backend (backend/pyproject.toml)
 psycopg-binary==3.3.6
     # via psycopg
+pycparser==3.12
+    # via cffi
 pydantic==2.14.1
     # via
     #   fastapi
@@ -39,6 +47,8 @@ pydantic==2.14.1
 pydantic-core==2.50.1
     # via pydantic
 pydantic-settings==2.16.0
+    # via smart-credit-cabinet-backend (backend/pyproject.toml)
+pyjwt==2.15.1
     # via smart-credit-cabinet-backend (backend/pyproject.toml)
 python-dotenv==1.2.4
     # via pydantic-settings
