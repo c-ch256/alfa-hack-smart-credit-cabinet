@@ -1,0 +1,103 @@
+# Backend: FastAPI и PostgreSQL
+
+Python 3.12, FastAPI, PostgreSQL 16, SQLAlchemy 2.0 и Alembic. Реализованы `/health`, `/ready`, авторизация, клиентский API черновиков и переходы `submit`/`withdraw`. `/health` проверяет процесс API; `/ready` делает `SELECT 1` в БД и возвращает 503 при недоступности без деталей подключения.
+
+## Запуск через Docker Compose
+
+Из корня репозитория:
+
+```bash
+cp .env.example .env
+# Задайте в .env собственные DB_PASSWORD, JWT_SECRET и DEMO_PASSWORD.
+docker compose up --build
+```
+
+После первого запуска: `http://127.0.0.1:8000/health`, `http://127.0.0.1:8000/ready`, Swagger `http://127.0.0.1:8000/docs`. Compose не публикует порт PostgreSQL, API доступен только на localhost. Данные БД сохраняются в именованном volume `postgres_data`; обычный `docker compose down` его не удаляет. API работает без root и запускает миграции, идемпотентный seed учётных записей и Uvicorn. При ошибке миграции или seed контейнер API не стартует.
+
+`JWT_SECRET` должен содержать не менее 32 байт случайного значения, `DEMO_PASSWORD` — не менее 12 символов. Эти значения не коммитят и не передают в логи. Seed создаёт `client1`–`client4` (CLIENT), `staff1` (STAFF), четыре синтетические компании и два демонстрационных продукта. Повторный запуск не меняет существующие учётные записи, пароли и компании; смену пароля нужно выполнять отдельной процедурой. Заявки seed не создаёт.
+
+Если `DEMO_PASSWORD` в `.env` изменён после первого seed, пересоздайте API-контейнер для загрузки нового окружения и выполните отдельную команду:
+
+```bash
+docker compose up -d --force-recreate api
+docker compose exec api python -m app.reset_demo_passwords
+```
+
+Команда меняет только хеши паролей существующих `client1`–`client4` и `staff1`; отсутствующие учётки не создаёт. Для локального Conda-запуска из `backend/` используйте `conda run -n craftors-backend python -m app.reset_demo_passwords` после передачи `DEMO_PASSWORD` через окружение. Пароль и хеш команда не печатает.
+
+`KEY_RATE` задаёт демонстрационную базовую ставку в процентах годовых (по умолчанию `16.00`); это ручное допущение MVP, а не ставка из внешнего источника или тариф банка. `app.services.pricing` рассчитывает ставку, аннуитет, итог выплат и DSCR в целых рублях с арифметикой `Decimal`. `app.services.mocks` содержит фиксированные синтетические ответы ФНС/БКИ для четырёх демо-ИНН. `app.services.checks.run_checks(session, application, snapshot)` добавляет три результата к указанному снимку, сохраняя прежние результаты. Результаты БКИ и служебные коды не выдаются клиентским API.
+
+`app.scoring.base` задаёт версионированный контракт `Scorer.score(ScoringRequest) -> ScoringResult`; `app.scoring.mock.MockScorer` — детерминированная синтетическая скоркарта с версией `mock-demo-2026-1`, не обученная модель. `app.services.policy.evaluate_policy` применяет учебные пороги и перебирает допустимые условия. `app.services.workflow.submit_and_process` связывает проверки, скоринг, политику и существующую FSM. В одной транзакции сохраняются новый снимок заявки и компании, проверки, попытки скоринга, решение/предложение при наличии, события статуса и аудит. Ошибки мока/скоринга оставляют заявку в `checking`/`scoring` и записывают попытку без кредитного отказа. Повторный `submit` в таком состоянии выполняет ограниченную повторную попытку; после успешного завершения возвращает 409. В production синхронную обработку следует вынести в очередь, сохранив транзакционные переходы и защиту от повторов.
+
+Проверка состояния и текущей миграции:
+
+```bash
+docker compose ps
+docker compose exec api alembic -c alembic.ini current
+```
+
+## Локальная разработка в Conda
+
+Все установки и проверки выполняйте только в окружении `craftors-backend`:
+
+```bash
+conda run -n craftors-backend python -m pip install -r backend/requirements-dev.lock
+```
+
+Настройки читаются из env. `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` собираются в PostgreSQL URL с драйвером psycopg; полный `DATABASE_URL` имеет приоритет. Для локального запуска вне Compose экспортируйте нужные переменные из своего `.env` и запустите команды из `backend/`:
+
+```bash
+conda run -n craftors-backend alembic -c alembic.ini upgrade head
+conda run -n craftors-backend python -m app.seed
+conda run -n craftors-backend uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+`POST /auth/login` принимает JSON с `login` и `password`, возвращает `access_token`, `token_type=bearer` и `expires_in`. Передавайте токен в `Authorization: Bearer <token>` для `GET /auth/me`; ответ содержит только `id`, `login`, `role`, `full_name`, `position`. JWT подписан HS256, содержит `sub`, `iss`, `aud`, `iat`, `nbf`, `exp`, `jti`, живёт 60 минут по умолчанию (`JWT_TTL_MINUTES`, максимум 480). Роль берётся из текущей записи пользователя в БД, а не из JWT. `/health`, `/ready` и локальный `/docs` остаются публичными.
+
+## Клиентские заявки
+
+Все маршруты ниже требуют `CLIENT`. `GET /me/companies` возвращает компании клиента из БД; `GET /products` показывает два демонстрационных продукта и их лимиты. `POST /applications` создаёт черновик и требует заголовок `Idempotency-Key` (1–128 символов: буквы, цифры, `.`, `_`, `~`, `-`). Тело: `company_id`, `product_code`, `amount` (целые рубли), `term_months`, `purpose`, необязательный `purpose_details`. Для инвестиционного кредита нужно указать `investment_object`, а от 5 млн ₽ — `collateral_type` и положительный `collateral_value`. Неполный черновик допускается, чтобы `submit` вернул статус `needs_info` с конкретным запросом; одобрения без этих сведений не будет. Пределы суммы и срока берутся из каталога. Условия и пороги — только демонстрационные допущения из `docs/00_common.md`, не тарифы банка.
+
+`GET /applications` и `GET /applications/{id}` дают текущие данные только по своим компаниям. `PATCH /applications/{id}` изменяет клиентские поля только у черновика; `POST /applications/{id}/submit` запускает синхронный конвейер и возвращает фактический итоговый статус. Стоп-фактор ведёт `checking → rejected`, неполные сведения — `checking → needs_info`; остальные исходы проходят через `scoring → decision`. `GET /applications/{id}/offers` возвращает только условия предложения без PD, причин скоринга и сырого payload моков. `POST /applications/{id}/withdraw` переводит заявку в `closed` только из `draft`, `needs_info`, `approved` или `counter_offer` согласно FSM. `GET /applications/{id}/history` возвращает фактические события с временем, ролью и ID инициатора, причиной и порядковым номером. Событие создания черновика имеет `from_status=null`. Списки заявок и событий принимают `limit` (1–100) и `offset` (0–1 000 000); для полной истории последовательно запрашивайте страницы. При `needs_info` ответ заявки содержит `info_request`.
+
+Повтор `POST /applications` с тем же ключом и исходным телом возвращает текущую заявку с HTTP 200, даже если её позже отредактировали; первая попытка возвращает 201. Тот же ключ с другим телом возвращает 409. Чужая компания или заявка даёт 404, запрещённый переход — 409, неверные поля — 422. Статус, история и аудит перехода сохраняются в одной транзакции; конкурентные изменения защищены версией заявки. Детальные схемы запросов и ответов доступны в `/docs`.
+
+При `needs_info` владелец вызывает `POST /applications/{id}/additional-info` с текущим `version` и хотя бы одним из полей `message`, `purpose_details`, `investment_object`, `collateral_type`, `collateral_value`. Сервис сохраняет новый снимок, выполняет `needs_info → checking` и повторно запускает проверки и решение. Устаревшая версия и повторный запрос возвращают 409; предыдущие снимки, проверки и события сохраняются.
+
+## Ручное рассмотрение
+
+Заявка в `manual_review` назначается активному сотруднику с ролью `STAFF`. Только назначенный сотрудник видит её через `GET /staff/applications?status=manual_review` и `GET /staff/applications/{id}`. Карточка содержит профиль компании, последние проверки DATA/FNS/BKI, демонстрационную PD и причины скоринга, предложения и историю. `GET /staff/audit?application_id={id}` показывает журнал по назначенной заявке. Списки поддерживают `limit` и `offset`.
+
+Из `manual_review` сотрудник вызывает `POST /staff/applications/{id}/decision` с `decision` (`approve`, `counter`, `reject`) и обязательным `comment`. Для `counter` можно указать `amount`, `term_months` и/или `product_code`; сервис проверяет лимиты продукта, цель кредита и обязательные сведения об объекте и залоге. `POST /staff/applications/{id}/request-info` принимает обязательный `message` и переводит заявку в `needs_info`; клиент отвечает через `additional-info`. Решения, условия, переходы и аудит сохраняются одной транзакцией. Чужая заявка даёт 404, недопустимый переход — 409. Клиентские ответы не содержат PD, причин скоринга и сырых данных ФНС/БКИ.
+
+## Принятие предложения и демо-выдача
+
+Владелец принимает актуальное предложение со статусом `proposed` через `POST /offers/{id}/accept` либо отклоняет через `POST /offers/{id}/decline`. Принятие переводит заявку из `approved` или `counter_offer` в `accepted`; отклонение закрывает её. Повторные и устаревшие операции дают 409. Состояние предложения, заявки, история и аудит сохраняются в одной транзакции.
+
+После принятия `POST /applications/{id}/sign-demo/code` возвращает одноразовый шестизначный код и время окончания действия. Это **допущение MVP**: код показывается непосредственно в защищённом ответе API, без SMS и внешнего канала. Ответ имеет `Cache-Control: no-store`. В БД хранится только HMAC-SHA256 от кода, связанный с заявкой; ключ берётся из `JWT_SECRET`, сам код не попадает в аудит или историю. Код действует 5 минут, повторная выдача в этот период ограничена, после пяти неверных попыток код блокируется до окончания срока. `POST /applications/{id}/sign-demo` с телом `{"code":"123456"}` при верном коде сохраняет реальные переходы `accepted → signed_demo → disbursed_demo`. Поле `status_label` в клиентском ответе показывает итог «Кредит выдан (демо)». Повторная подпись не создаёт вторую выдачу. Никаких договоров, проводок и денежных переводов нет.
+
+**Допущение MVP:** лимит входа хранится в памяти процесса: 5 попыток в минуту на логин (включая попытки с разных IP) и на пару логин/IP, 30 на IP. При нескольких репликах лимит не общий; до публичного масштабирования нужен общий лимитер, а также механизм отзыва уже выданных JWT. Приложение не принимает cookie для авторизации. Ответы об ошибках входа не сообщают, существует ли логин.
+
+Ревизия `0002_credit_schema` создаёт `users`, `companies`, `products`, `applications`, `application_snapshots`, `check_results`, `scores`, `decisions`, `offers`, `status_events` и `audit_events`. Ревизия `0003_staff_assignment` добавляет назначение сотрудника к заявке и назначает существующие заявки `manual_review` активному `staff1`, если он есть. Ревизия `0004_sign_code_attempts` сохраняет счётчик попыток демо-подписания. Миграции не создают демо-данных. `companies.owner_user_id` связывает компанию с владельцем; клиентский API проверяет роль и принадлежность для каждого обращения. Снимки, результаты проверок, оценки, решения и события хранятся отдельными записями без каскадного удаления. FSM и фильтрация содержимого аудита выполняются сервисами, а не ограничениями схемы.
+
+Текущую ревизию показывает `conda run -n craftors-backend alembic -c alembic.ini current`. Откат `alembic downgrade 0001_initial_empty` удаляет прикладные таблицы и допустим только на одноразовой тестовой БД; перед изменениями долговременной БД нужна резервная копия.
+
+Без работающей БД `/health` остаётся доступным, а `/ready` возвращает 503. Текущий локальный Swagger — `/docs`; публичный префикс `/api` через nginx относится к следующему этапу. В production дополнительно обязательны `APP_ENV=production`, `APP_DOCS_ENABLED=false`, явный `APP_ALLOWED_HOSTS`, непустые учётные данные БД и `JWT_SECRET`. Не публикуйте PostgreSQL наружу и не печатайте переменные с паролями, токенами или полный `DATABASE_URL`.
+
+## Проверки
+
+Из `backend/`:
+
+```bash
+conda run -n craftors-backend python -m pytest -q
+conda run -n craftors-backend ruff check app tests alembic
+conda run -n craftors-backend ruff format --check app tests alembic
+conda run -n craftors-backend alembic -c alembic.ini heads
+conda run -n craftors-backend alembic -c alembic.ini upgrade head --sql
+conda run -n craftors-backend python -m pip check
+conda run -n craftors-backend python -m pip_audit --no-deps --disable-pip -r requirements-dev.lock
+```
+
+Первая миграция создаёт только служебную таблицу `alembic_version`; вторая — прикладную схему. Проверка `--sql` не требует БД. Тесты схемы применяют и откатывают миграции на изолированной SQLite с включёнными внешними ключами; окончательная проверка PostgreSQL выполняется через Compose.
+
+Зависимости объявлены в `pyproject.toml`; runtime и dev версии зафиксированы в `requirements.lock` и `requirements-dev.lock`. После изменения зависимостей пересобирайте оба lock-файла через `pip-compile` под Python 3.12 в `craftors-backend` и повторяйте проверки. Хеши пакетов пока не закреплены.

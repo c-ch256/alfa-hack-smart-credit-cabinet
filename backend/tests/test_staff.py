@@ -1,0 +1,461 @@
+# ruff: noqa: F811 -- импорт pytest fixture используется как параметр тестов
+
+import asyncio
+
+import pytest
+from fastapi import FastAPI
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
+from test_applications import api, auth, company_id, create  # noqa: F401 -- pytest fixture
+
+from app.errors import ApiError
+from app.models import (
+    Application,
+    ApplicationSnapshot,
+    AuditEvent,
+    CheckResult,
+    Decision,
+    Offer,
+    Score,
+    StatusEvent,
+    User,
+)
+from app.security import hash_password
+from app.services.staff import make_manual_decision
+from app.staff_schemas import ManualDecisionInput
+
+
+async def manual_application(
+    client: AsyncClient, *, login='client3', fields: dict | None = None
+) -> tuple[int, dict]:
+    headers = await auth(client, login)
+    company = await company_id(client, headers)
+    created = await create(client, headers, company, fields=fields or {'amount': 4_000_000})
+    assert created.status_code == 201, created.text
+    app_id = created.json()['id']
+    submitted = await client.post(f'/applications/{app_id}/submit', headers=headers)
+    assert submitted.status_code == 200, submitted.text
+    assert submitted.json()['status'] == 'manual_review'
+    return app_id, headers
+
+
+def test_client_additional_info_rechecks_and_preserves_history(api: FastAPI) -> None:
+    async def check():
+        async with AsyncClient(
+            transport=ASGITransport(app=api), base_url='http://testserver'
+        ) as client:
+            owner = await auth(client)
+            company = await company_id(client, owner)
+            created = await create(
+                client,
+                owner,
+                company,
+                fields={
+                    'product_code': 'investment',
+                    'amount': 8_000_000,
+                    'investment_object': 'Станок',
+                },
+            )
+            app_id = created.json()['id']
+            submitted = await client.post(f'/applications/{app_id}/submit', headers=owner)
+            assert submitted.json()['status'] == 'needs_info'
+            version = submitted.json()['version']
+            other = await auth(client, 'client2')
+            assert (
+                await client.post(
+                    f'/applications/{app_id}/additional-info',
+                    headers=other,
+                    json={
+                        'version': version,
+                        'collateral_type': 'Техника',
+                        'collateral_value': 9_000_000,
+                    },
+                )
+            ).status_code == 404
+            staff = await auth(client, 'staff1')
+            assert (
+                await client.post(
+                    f'/applications/{app_id}/additional-info',
+                    headers=staff,
+                    json={'version': version, 'collateral_type': 'Техника'},
+                )
+            ).status_code == 403
+            assert (
+                await client.post(
+                    f'/applications/{app_id}/additional-info',
+                    headers=owner,
+                    json={'version': version, 'amount': 9_000_000},
+                )
+            ).status_code == 422
+            response = await client.post(
+                f'/applications/{app_id}/additional-info',
+                headers=owner,
+                json={
+                    'version': version,
+                    'collateral_type': 'Техника',
+                    'collateral_value': 9_000_000,
+                    'message': 'Синтетические сведения о залоге',
+                },
+            )
+            assert response.status_code == 200, response.text
+            assert response.json()['status'] == 'approved'
+            assert response.json()['info_request'] is None
+            assert response.json()['info_response'] == 'Синтетические сведения о залоге'
+            assert (
+                await client.post(
+                    f'/applications/{app_id}/additional-info',
+                    headers=owner,
+                    json={'version': version, 'collateral_type': 'Техника'},
+                )
+            ).status_code == 409
+            history = (await client.get(f'/applications/{app_id}/history', headers=owner)).json()
+            assert [item['to_status'] for item in history] == [
+                'draft',
+                'submitted',
+                'checking',
+                'needs_info',
+                'checking',
+                'scoring',
+                'decision',
+                'approved',
+            ]
+            assert history[4]['actor_role'] == 'CLIENT'
+            return app_id
+
+    app_id = asyncio.run(check())
+    with Session(api.state.db_engine) as session:
+        snapshots = list(
+            session.scalars(
+                select(ApplicationSnapshot)
+                .where(ApplicationSnapshot.application_id == app_id)
+                .order_by(ApplicationSnapshot.version)
+            )
+        )
+        assert len(snapshots) == 3
+        assert snapshots[-2].data['collateral_value'] is None
+        assert snapshots[-1].data['collateral_value'] == 9_000_000
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(CheckResult)
+                .where(CheckResult.application_id == app_id)
+            )
+            == 6
+        )
+        assert (
+            session.scalar(
+                select(func.count()).select_from(Score).where(Score.application_id == app_id)
+            )
+            >= 1
+        )
+
+
+def test_staff_queue_card_and_scoped_audit(api: FastAPI) -> None:
+    with Session(api.state.db_engine) as session:
+        session.add(
+            User(
+                login='staff2',
+                role='STAFF',
+                full_name='Другой демо-аналитик',
+                password_hash=hash_password('synthetic-demo-password-only'),
+                is_active=True,
+            )
+        )
+        session.commit()
+
+    async def check():
+        async with AsyncClient(
+            transport=ASGITransport(app=api), base_url='http://testserver'
+        ) as client:
+            app_id, client_headers = await manual_application(client)
+            staff = await auth(client, 'staff1')
+            other_staff = await auth(client, 'staff2')
+            assert (
+                await client.get('/staff/applications', headers=client_headers)
+            ).status_code == 403
+            assert (await client.get('/staff/applications')).status_code == 401
+            assert (
+                await client.get('/staff/applications?status=unknown', headers=staff)
+            ).status_code == 422
+            queue = (
+                await client.get('/staff/applications?status=manual_review', headers=staff)
+            ).json()
+            assert [item['id'] for item in queue] == [app_id]
+            assert (
+                await client.get('/staff/applications?status=approved', headers=staff)
+            ).json() == []
+            assert (await client.get('/staff/applications', headers=other_staff)).json() == []
+            for path in (f'/staff/applications/{app_id}', f'/staff/audit?application_id={app_id}'):
+                assert (await client.get(path, headers=other_staff)).status_code == 404
+            assert (
+                await client.post(
+                    f'/staff/applications/{app_id}/decision',
+                    headers=other_staff,
+                    json={
+                        'decision': 'reject',
+                        'comment': 'Тест',
+                    },
+                )
+            ).status_code == 404
+            detail = (await client.get(f'/staff/applications/{app_id}', headers=staff)).json()
+            assert detail['application']['status'] == 'manual_review'
+            assert detail['company']['name'] == 'ООО «Гранит-Строй»'
+            assert detail['company_snapshot']['avg_monthly_revenue'] == 2_000_000
+            assert {item['source'] for item in detail['checks']} == {'DATA', 'FNS', 'BKI'}
+            assert detail['score']['pd'] is not None
+            assert detail['score']['reasons']
+            assert detail['history'][-1]['to_status'] == 'manual_review'
+            assert (
+                await client.get(f'/staff/applications/{app_id}', headers=client_headers)
+            ).status_code == 403
+            audit_rows = (
+                await client.get(f'/staff/audit?application_id={app_id}', headers=staff)
+            ).json()
+            assert any(item['action'] == 'staff.view' for item in audit_rows)
+            assert (await client.get('/staff/audit?limit=1', headers=staff)).status_code == 200
+            return app_id
+
+    app_id = asyncio.run(check())
+    with Session(api.state.db_engine) as session:
+        application = session.get(Application, app_id)
+        staff1 = session.scalar(select(User).where(User.login == 'staff1'))
+        assert application.assigned_staff_user_id == staff1.id
+        actions = [
+            row.action
+            for row in session.scalars(
+                select(AuditEvent).where(AuditEvent.application_id == app_id)
+            )
+        ]
+        assert 'staff.view' in actions and 'staff.audit_view' in actions
+
+
+@pytest.mark.parametrize(
+    'decision,extra,status,offer_kind',
+    [
+        ('approve', {}, 'approved', 'original'),
+        ('counter', {'amount': 3_000_000, 'term_months': 36}, 'counter_offer', 'counter'),
+        ('reject', {}, 'rejected', None),
+    ],
+)
+def test_staff_manual_decisions(api: FastAPI, decision, extra, status, offer_kind) -> None:
+    async def check():
+        async with AsyncClient(
+            transport=ASGITransport(app=api), base_url='http://testserver'
+        ) as client:
+            app_id, owner = await manual_application(client)
+            staff = await auth(client, 'staff1')
+            assert (
+                await client.post(
+                    f'/staff/applications/{app_id}/decision',
+                    headers=owner,
+                    json={'decision': 'reject', 'comment': 'Нет'},
+                )
+            ).status_code == 403
+            if decision == 'counter':
+                assert (
+                    await client.post(
+                        f'/staff/applications/{app_id}/decision',
+                        headers=staff,
+                        json={'decision': 'reject', 'comment': '   '},
+                    )
+                ).status_code == 422
+                assert (
+                    await client.post(
+                        f'/staff/applications/{app_id}/decision',
+                        headers=staff,
+                        json={
+                            'decision': 'counter',
+                            'amount': 299_999,
+                            'comment': 'Тест',
+                        },
+                    )
+                ).status_code == 422
+                assert (
+                    await client.post(
+                        f'/staff/applications/{app_id}/decision',
+                        headers=staff,
+                        json={
+                            'decision': 'counter',
+                            'product_code': 'investment',
+                            'comment': 'Тест',
+                        },
+                    )
+                ).status_code == 422
+            assert (
+                await client.post(
+                    f'/staff/applications/{app_id}/decision',
+                    headers=staff,
+                    json={
+                        'decision': decision,
+                        **extra,
+                        'comment': 'Обоснование синтетического решения',
+                    },
+                )
+            ).status_code == 200
+            client_application = (await client.get(f'/applications/{app_id}', headers=owner)).json()
+            assert client_application['status'] == status
+            assert {'pd', 'risk_band', 'reasons', 'payload', 'model_version'}.isdisjoint(
+                client_application
+            )
+            assert (
+                await client.post(
+                    f'/staff/applications/{app_id}/decision',
+                    headers=staff,
+                    json={
+                        'decision': 'reject',
+                        'comment': 'Повтор',
+                    },
+                )
+            ).status_code == 409
+            offers = (await client.get(f'/applications/{app_id}/offers', headers=owner)).json()
+            if offer_kind:
+                assert len(offers) == 1 and offers[0]['kind'] == offer_kind
+                assert offers[0]['monthly_payment'] > 0
+            else:
+                assert offers == []
+            return app_id
+
+    app_id = asyncio.run(check())
+    with Session(api.state.db_engine) as session:
+        result = session.scalar(select(Decision).where(Decision.application_id == app_id))
+        assert result.decision == decision
+        assert result.created_by == 'STAFF' and result.created_by_user_id is not None
+        assert result.rationale == ['Обоснование синтетического решения']
+        assert result.rule_version == 'manual-demo-2026-1'
+        assert session.scalar(
+            select(func.count()).select_from(Offer).where(Offer.application_id == app_id)
+        ) == (1 if offer_kind else 0)
+        assert session.scalar(
+            select(StatusEvent)
+            .where(StatusEvent.application_id == app_id)
+            .order_by(StatusEvent.sequence.desc())
+        )
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(AuditEvent)
+                .where(AuditEvent.application_id == app_id, AuditEvent.action == 'staff.decision')
+            )
+            == 1
+        )
+
+
+def test_staff_requests_info_then_client_rechecks(api: FastAPI) -> None:
+    async def check():
+        async with AsyncClient(
+            transport=ASGITransport(app=api), base_url='http://testserver'
+        ) as client:
+            app_id, owner = await manual_application(client)
+            staff = await auth(client, 'staff1')
+            assert (
+                await client.post(
+                    f'/staff/applications/{app_id}/request-info',
+                    headers=staff,
+                    json={'message': '   '},
+                )
+            ).status_code == 422
+            requested = await client.post(
+                f'/staff/applications/{app_id}/request-info',
+                headers=staff,
+                json={
+                    'message': 'Уточните исполнение контракта',
+                },
+            )
+            assert requested.status_code == 200
+            assert requested.json()['status'] == 'needs_info'
+            assert requested.json()['info_request'] == 'Уточните исполнение контракта'
+            version = requested.json()['version']
+            assert (
+                await client.post(
+                    f'/staff/applications/{app_id}/request-info',
+                    headers=staff,
+                    json={'message': 'Повтор'},
+                )
+            ).status_code == 409
+            updated = await client.post(
+                f'/applications/{app_id}/additional-info',
+                headers=owner,
+                json={
+                    'version': version,
+                    'message': 'Контракт исполняется по графику',
+                },
+            )
+            assert updated.status_code == 200, updated.text
+            assert updated.json()['status'] == 'manual_review'
+            history = (await client.get(f'/applications/{app_id}/history', headers=owner)).json()
+            assert [event['to_status'] for event in history][-3:] == [
+                'scoring',
+                'decision',
+                'manual_review',
+            ]
+            assert [event['to_status'] for event in history].count('manual_review') == 2
+            return app_id
+
+    app_id = asyncio.run(check())
+    with Session(api.state.db_engine) as session:
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(ApplicationSnapshot)
+                .where(ApplicationSnapshot.application_id == app_id)
+            )
+            == 3
+        )
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(CheckResult)
+                .where(CheckResult.application_id == app_id)
+            )
+            == 6
+        )
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(AuditEvent)
+                .where(
+                    AuditEvent.application_id == app_id, AuditEvent.action == 'staff.request_info'
+                )
+            )
+            == 1
+        )
+
+
+def test_stale_staff_decision_rolls_back(api: FastAPI) -> None:
+    async def setup() -> int:
+        async with AsyncClient(
+            transport=ASGITransport(app=api), base_url='http://testserver'
+        ) as client:
+            application_id, _ = await manual_application(client)
+            return application_id
+
+    application_id = asyncio.run(setup())
+    payload = ManualDecisionInput(decision='approve', comment='Синтетическое решение')
+    with Session(api.state.db_engine) as first, Session(api.state.db_engine) as second:
+        actor_one = first.scalar(select(User).where(User.login == 'staff1'))
+        actor_two = second.scalar(select(User).where(User.login == 'staff1'))
+        second.get(Application, application_id)
+        make_manual_decision(first, application_id, actor_one, payload, api.state.settings)
+        first.commit()
+        with pytest.raises(ApiError) as error:
+            make_manual_decision(second, application_id, actor_two, payload, api.state.settings)
+        assert error.value.status_code == 409
+        second.rollback()
+    with Session(api.state.db_engine) as session:
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(Decision)
+                .where(Decision.application_id == application_id, Decision.created_by == 'STAFF')
+            )
+            == 1
+        )
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(Offer)
+                .where(Offer.application_id == application_id, Offer.created_by == 'STAFF')
+            )
+            == 1
+        )
