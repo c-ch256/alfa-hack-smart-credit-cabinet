@@ -1,4 +1,4 @@
-"""Локальный адаптер JSON-контракта; без обращений к внешним сервисам."""
+"""Trusted internal scoring. No loan decisions, offers or external calls."""
 import json
 import os
 from pathlib import Path
@@ -6,73 +6,74 @@ from pathlib import Path
 import joblib
 import numpy as np
 import pandas as pd
-from catboost import CatBoostClassifier, Pool
 
-from ml.features import build_features, request_to_row
-
-
-def risk_band(pd_value):
-    return 'A' if pd_value < 0.05 else 'B' if pd_value < 0.10 else 'C' if pd_value < 0.20 else 'D'
-
+from ml.credit_policy import risk_band, load_config
+from ml.dto import ScoringRequest, ScoringResult, CONTRACT_VERSION, fingerprint
+from ml.errors import ArtifactError, OutOfDomainError
+from ml.features import INPUT_FIELDS, request_to_row, schema_validator
+from ml.train import digest, preprocessing_digest, versions, ROOT
 
 class ModelScorer:
-    """score(dict | Pydantic v2) -> dict по scoring_result.schema.json.
-
-    Загрузка один раз при создании. Ошибки загрузки передаются backend;
-    выбор MockScorer и логирование остаются ответственностью backend.
-    """
     def __init__(self, model_dir=None):
-        directory = Path(model_dir or os.getenv('MODEL_DIR', 'ml/artifacts'))
-        self.metadata = json.loads((directory / 'metadata.json').read_text(encoding='utf-8'))
-        self.model = CatBoostClassifier()
-        self.model.load_model(str(directory / 'model.cbm'))
-        self.calibrator = joblib.load(directory / 'calibration.joblib')
-        if self.model.feature_names_ != self.metadata['features']:
-            raise ValueError('Model feature schema mismatch')
+        directory = Path(model_dir or os.getenv("MODEL_DIR", str(ROOT / "artifacts")))
+        try:
+            self.metadata = json.loads((directory / "metadata.json").read_text(encoding="utf-8"))
+            meta = self.metadata
+            if meta["artifact_format"] != "logistic-pipeline-v2" or meta["contract_version"] != CONTRACT_VERSION:
+                raise ArtifactError("Incompatible artifact/contract version")
+            if meta["pipeline_sha256"] != digest(directory / "pipeline.joblib"):
+                raise ArtifactError("Artifact hash mismatch")
+            if meta["libraries"] != versions() or meta["preprocessing_sha256"] != preprocessing_digest():
+                raise ArtifactError("Runtime libraries or preprocessing mismatch")
+            if meta["request_schema_sha256"] != digest(ROOT / "contracts/scoring_request.schema.json"):
+                raise ArtifactError("Input schema mismatch")
+            self.pipeline = joblib.load(directory / "pipeline.joblib")
+            if list(self.pipeline.classes_) != [0,1] or meta["positive_class"] != 1:
+                raise ArtifactError("Invalid positive class")
+            actual = self.pipeline.named_steps["preprocessing"].get_feature_names_out().tolist()
+            if actual != meta["transformed_features"] or meta["input_fields"] != INPUT_FIELDS:
+                raise ArtifactError("Feature order mismatch")
+            if meta["model_version"] != "logistic-v2-" + meta["pipeline_sha256"][:16]:
+                raise ArtifactError("Model identity mismatch")
+        except ArtifactError:
+            raise
+        except Exception as error:
+            raise ArtifactError("Unable to load compatible local model: " + str(error)) from error
+        self.boundaries = load_config()["risk_boundaries"]
 
-    def score(self, req):
+    def score(self, req: ScoringRequest) -> ScoringResult:
         return self.score_many([req])[0]
 
     def score_many(self, requests):
         if not requests:
             return []
-        rows = pd.DataFrame([request_to_row(req) for req in requests])
-        features = build_features(rows)[self.metadata['features']]
-        pool = Pool(features, cat_features=self.metadata['categorical_features'])
-        raw = np.asarray(self.model.predict(pool, prediction_type='RawFormulaVal', thread_count=1))
-        probabilities = self.calibrator.predict_proba(raw.reshape(-1, 1))[:, 1]
-        shap = self.model.get_feature_importance(pool, type='ShapValues', thread_count=1)[:, :-1]
+        envelopes = [ScoringRequest.from_payload(req) for req in requests]
+        rows = [request_to_row(req.request) for req in envelopes]
+        for row in rows:
+            if row["status"] != "active" or row["defaults"] > 0 or row["max_overdue_days_12m"] > 90:
+                raise OutOfDomainError("Request has a pre-scoring stop factor")
+        x = pd.DataFrame(rows)[INPUT_FIELDS]
+        probabilities = self.pipeline.predict_proba(x)[:,1]
+        transformed = self.pipeline[:-1].transform(x)
+        classifier = self.pipeline.named_steps["classifier"]
+        contributions = transformed * classifier.coef_[0]
+        logits = classifier.intercept_[0] + contributions.sum(axis=1)
         results = []
-        for probability, contributions in zip(probabilities, shap):
+        for req, p, terms, logit in zip(envelopes, probabilities, contributions, logits):
+            if not np.isfinite(p) or not 0 <= p <= 1:
+                raise ArtifactError("Non-finite probability")
             reasons = []
-            for index in np.argsort(-np.abs(contributions))[:4]:
-                contribution = float(contributions[index])
-                if contribution == 0:
-                    continue
-                effect = 'increases_risk' if contribution > 0 else 'decreases_risk'
-                name = features.columns[index]
-                label = LABELS.get(name, name)
-                text = f'{label}: значение повышает оценку риска' if contribution > 0 else f'{label}: значение снижает оценку риска'
-                reasons.append({'feature': name, 'text': text, 'effect': effect, 'contribution': contribution})
-            results.append({'pd': float(probability), 'risk_band': risk_band(probability),
-                            'model_version': self.metadata['model_version'], 'reasons': reasons})
+            for i in np.argsort(-np.abs(terms))[:4]:
+                value = float(terms[i])
+                reasons.append({"feature": self.metadata["transformed_features"][i],
+                    "text": "Внутренний вклад преобразованного признака в log-odds",
+                    "effect": "increases_risk" if value >= 0 else "decreases_risk",
+                    "contribution": value})
+            result = ScoringResult(req.application_id, float(p), risk_band(float(p), self.boundaries),
+                self.metadata["model_version"], reasons, fingerprint(req.request),
+                {"units": "log-odds relative to fitted intercept",
+                 "intercept": float(classifier.intercept_[0]), "log_odds": float(logit),
+                 "contribution_sum": float(terms.sum())})
+            schema_validator("scoring_result.v2.schema.json").validate(result.to_dict())
+            results.append(result)
         return results
-
-
-LABELS = {
-    'amount': 'Сумма кредита', 'term_months': 'Срок кредита',
-    'collateral_value': 'Стоимость залога', 'product_code': 'Продукт',
-    'legal_form': 'Форма бизнеса', 'okved': 'Отрасль', 'region': 'Регион',
-    'business_age_months': 'Возраст бизнеса', 'bank_client_months': 'Срок обслуживания в банке',
-    'avg_monthly_revenue': 'Средняя выручка', 'avg_monthly_expenses': 'Средние расходы',
-    'revenue_trend_6m': 'Динамика выручки', 'existing_monthly_payments': 'Текущие платежи',
-    'active_loans': 'Число кредитов', 'max_overdue_days_12m': 'Просрочки за последний год',
-    'total_debt': 'Общий долг', 'defaults': 'Дефолты в истории', 'status': 'Статус компании',
-    'tax_debt': 'Налоговый долг', 'mass_address': 'Массовый адрес',
-    'net_cash_flow': 'Чистый денежный поток', 'net_margin': 'Доля свободного денежного потока',
-    'principal_monthly': 'Основной долг в расчёте на месяц',
-    'principal_coverage': 'Покрытие текущих платежей и основного долга без процентов',
-    'loan_to_annual_revenue': 'Кредит к годовой выручке',
-    'debt_to_annual_revenue': 'Долг к годовой выручке',
-    'collateral_coverage': 'Покрытие залогом', 'log_revenue': 'Масштаб выручки',
-}

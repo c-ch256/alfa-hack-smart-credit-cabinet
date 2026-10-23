@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Internal ScoringResult v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "application_id",
+    "pd",
+    "risk_band",
+    "model_version",
+    "reasons",
+    "technical_status",
+    "request_hash",
+    "details"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "2.0"
+    },
+    "application_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "pd": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "risk_band": {
+      "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ]
+    },
+    "model_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reasons": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "feature",
+          "text",
+          "effect",
+          "contribution"
+        ],
+        "properties": {
+          "feature": {
+            "type": "string",
+            "minLength": 1
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "effect": {
+            "enum": [
+              "increases_risk",
+              "decreases_risk"
+            ]
+          },
+          "contribution": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "technical_status": {
+      "const": "OK"
+    },
+    "request_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "details": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "units",
+        "intercept",
+        "log_odds",
+        "contribution_sum"
+      ],
+      "properties": {
+        "units": {
+          "const": "log-odds relative to fitted intercept"
+        },
+        "intercept": {
+          "type": "number"
+        },
+        "log_odds": {
+          "type": "number"
+        },
+        "contribution_sum": {
+          "type": "number"
+        }
+      }
+    }
+  }
+}

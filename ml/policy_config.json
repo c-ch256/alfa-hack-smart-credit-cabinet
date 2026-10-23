@@ -1,0 +1,74 @@
+{
+  "schema_version": "1.0",
+  "assumptions": "Educational MVP configuration, not bank policy or current market rates",
+  "risk_boundaries": [
+    0.05,
+    0.1,
+    0.2
+  ],
+  "pd_eligible_below": 0.12,
+  "pd_decline_at_or_above": 0.25,
+  "min_dscr": 1.25,
+  "max_auto_amount": 30000000,
+  "manual_overdue_above": 30,
+  "stop_overdue_above": 90,
+  "key_rate": 0.14,
+  "risk_premiums": {
+    "A": 0,
+    "B": 0.015,
+    "C": 0.03,
+    "D": 0.05
+  },
+  "products": {
+    "working_capital": {
+      "min_amount": 300000,
+      "max_amount": 30000000,
+      "min_term": 3,
+      "max_term": 36,
+      "margin": 0.08
+    },
+    "investment": {
+      "min_amount": 1000000,
+      "max_amount": 100000000,
+      "min_term": 12,
+      "max_term": 84,
+      "margin": 0.06,
+      "collateral_from": 5000000
+    }
+  },
+  "purposes": {
+    "working_capital": [
+      "working_capital"
+    ],
+    "equipment": [
+      "investment"
+    ],
+    "expansion": [
+      "working_capital",
+      "investment"
+    ]
+  },
+  "amount_fractions": [
+    1,
+    0.9,
+    0.8,
+    0.7,
+    0.6,
+    0.5
+  ],
+  "term_candidates": [
+    12,
+    24,
+    36,
+    60,
+    84
+  ],
+  "round_amount": 10000,
+  "max_offers": 3,
+  "ranking_weights": {
+    "purpose": 0.35,
+    "amount": 0.35,
+    "affordability": 0.2,
+    "term": 0.1
+  }
+}
