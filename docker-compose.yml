@@ -17,7 +17,8 @@ services:
 
   api:
     build:
-      context: ./backend
+      context: .
+      dockerfile: backend/Dockerfile
     environment:
       DB_HOST: db
       DB_PORT: '5432'
@@ -29,6 +30,8 @@ services:
       JWT_AUDIENCE: ${JWT_AUDIENCE:-craftors-credit-cabinet}
       JWT_TTL_MINUTES: ${JWT_TTL_MINUTES:-60}
       KEY_RATE: ${KEY_RATE:-16.00}
+      SCORER: ${SCORER:-mock}
+      MODEL_DIR: ${MODEL_DIR:-/app/ml/artifacts}
       DEMO_PASSWORD: ${DEMO_PASSWORD:?Set DEMO_PASSWORD in .env}
     depends_on:
       db:
