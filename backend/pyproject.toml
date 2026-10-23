@@ -1,0 +1,39 @@
+[project]
+name = 'smart-credit-cabinet-backend'
+version = '0.1.0'
+description = 'Synthetic MVP backend for the Smart Credit Cabinet'
+requires-python = '>=3.12,<3.13'
+dependencies = [
+    'alembic==1.20.0',
+    'argon2-cffi==25.1.0',
+    'fastapi==0.156.4',
+    'pydantic-settings==2.16.0',
+    'psycopg[binary]==3.3.6',
+    'PyJWT==2.15.1',
+    'SQLAlchemy==2.0.53',
+    'uvicorn==0.40.0',
+]
+
+[project.optional-dependencies]
+dev = [
+    'httpx==0.28.1',
+    'pip-audit==2.10.1',
+    'pytest==9.0.3',
+    'ruff==0.16.8',
+]
+
+[tool.pytest.ini_options]
+testpaths = ['tests']
+
+[tool.ruff]
+target-version = 'py312'
+line-length = 100
+
+[tool.ruff.format]
+quote-style = 'single'
+
+[tool.ruff.lint]
+select = ['E', 'F', 'I', 'B', 'UP', 'S']
+
+[tool.ruff.lint.per-file-ignores]
+'tests/**' = ['S101', 'S105', 'S106']
