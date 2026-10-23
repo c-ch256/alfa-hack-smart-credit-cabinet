@@ -7,11 +7,16 @@ import joblib
 import numpy as np
 import pandas as pd
 
-from ml.credit_policy import risk_band, load_config
-from ml.dto import ScoringRequest, ScoringResult, CONTRACT_VERSION, fingerprint
+from ml.dto import CONTRACT_VERSION, ScoringRequest, ScoringResult, fingerprint
 from ml.errors import ArtifactError, OutOfDomainError
 from ml.features import INPUT_FIELDS, request_to_row, schema_validator
-from ml.train import digest, preprocessing_digest, versions, ROOT
+from ml.train import ROOT, digest, preprocessing_digest, versions
+
+RISK_BOUNDARIES = (0.05, 0.10, 0.20)
+
+
+def _risk_band(pd_value):
+    return 'ABCD'[sum(pd_value >= boundary for boundary in RISK_BOUNDARIES)]
 
 class ModelScorer:
     def __init__(self, model_dir=None):
@@ -39,7 +44,7 @@ class ModelScorer:
             raise
         except Exception as error:
             raise ArtifactError("Unable to load compatible local model: " + str(error)) from error
-        self.boundaries = load_config()["risk_boundaries"]
+        self.boundaries = RISK_BOUNDARIES
 
     def score(self, req: ScoringRequest) -> ScoringResult:
         return self.score_many([req])[0]
@@ -69,7 +74,7 @@ class ModelScorer:
                     "text": "Внутренний вклад преобразованного признака в log-odds",
                     "effect": "increases_risk" if value >= 0 else "decreases_risk",
                     "contribution": value})
-            result = ScoringResult(req.application_id, float(p), risk_band(float(p), self.boundaries),
+            result = ScoringResult(req.application_id, float(p), _risk_band(float(p)),
                 self.metadata["model_version"], reasons, fingerprint(req.request),
                 {"units": "log-odds relative to fitted intercept",
                  "intercept": float(classifier.intercept_[0]), "log_odds": float(logit),

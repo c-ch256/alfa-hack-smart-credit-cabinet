@@ -13,6 +13,7 @@ from app.api.staff import router as staff_router
 from app.config import Settings
 from app.db import create_db_engine
 from app.errors import ApiError, api_error_handler, validation_error_handler
+from app.scoring.model import ModelScorer
 from app.security import LoginRateLimiter
 
 
@@ -28,6 +29,7 @@ def create_app(settings: Settings | None = None, *, db_engine: Engine | None = N
     app.state.settings = config
     app.state.db_engine = db_engine if db_engine is not None else create_db_engine(config)
     app.state.login_limiter = LoginRateLimiter()
+    app.state.workflow_scorer = ModelScorer(config.model_dir) if config.scorer == 'model' else None
 
     @app.middleware('http')
     async def prevent_response_caching(request: Request, call_next):

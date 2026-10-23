@@ -4,6 +4,23 @@ Python 3.12, FastAPI, PostgreSQL 16, SQLAlchemy 2.0 и Alembic. Реализов
 
 ## Запуск через Docker Compose
 
+Режим скоринга задаёт `SCORER=mock|model` в `.env` (по умолчанию `mock`).
+После смены режима пересоздайте API: `docker compose up -d --build --force-recreate api`.
+В режиме `model` образ содержит доверенный локальный артефакт `ml/artifacts/pipeline.joblib`
+и минимальные runtime-зависимости инференса; сеть при запуске модели не нужна.
+`MODEL_DIR` в контейнере по умолчанию `/app/ml/artifacts`. Для локального запуска
+backend можно задать `MODEL_DIR` абсолютным путём к каталогу артефакта; без него
+используется `ml/artifacts` в корне репозитория. При несовместимости зависимостей,
+исходников preprocessing или хеша pipeline приложение в режиме `model` не стартует
+с контролируемой технической ошибкой; тихого перехода на mock нет.
+
+Для проверки модели локально: из корня репозитория запустите
+`PYTHONPATH=backend:. python -m pytest -q backend/tests/test_model_scoring.py backend/tests/test_model_workflow.py`
+в окружении backend с установленными зависимостями `backend/requirements-dev.lock`.
+Модель обучена на синтетических данных. Её PD и метрики не подтверждают качество
+на реальных заёмщиках; результаты сохраняются с `source=model` и
+`is_test_result=True`, а кредитное решение остаётся за backend policy.
+
 Из корня репозитория:
 
 ```bash

@@ -11,7 +11,7 @@ from app.config import Settings
 from app.errors import ApiError
 from app.models import Application, AuditEvent, Decision, Offer, Product, Score, User
 from app.scoring.base import CompanyFeatures, Scorer
-from app.scoring.mock import MockScorer
+from app.scoring.selector import ScorerUnavailableError, select_scorer
 from app.services.checks import check_data
 from app.services.policy import PURPOSE_PRODUCTS, build_scoring_request
 from app.services.pricing import credit_terms
@@ -128,7 +128,10 @@ def make_manual_decision(
             item.code: item.margin_pp
             for item in session.scalars(select(Product).where(Product.is_active.is_(True)))
         }
-        delegate = scorer or MockScorer(settings.key_rate, products)
+        try:
+            delegate = select_scorer(settings, scorer, products)
+        except ScorerUnavailableError:
+            raise ApiError(503, 'SCORING_UNAVAILABLE', 'Оценка временно недоступна') from None
         recorder = RecordingScorer(session, application, snapshot, delegate)
         try:
             score = recorder.score(request)

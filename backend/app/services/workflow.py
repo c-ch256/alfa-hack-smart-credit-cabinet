@@ -31,7 +31,7 @@ from app.scoring.base import (
     ScoringRequest,
     ScoringResult,
 )
-from app.scoring.mock import MockScorer
+from app.scoring.selector import ScorerUnavailableError, select_scorer
 from app.services.checks import CheckOutcome, run_checks
 from app.services.mocks import bki_by_inn, fns_by_inn
 from app.services.policy import (
@@ -415,9 +415,13 @@ def process_application(
         product.code: product
         for product in session.scalars(select(Product).where(Product.is_active.is_(True)))
     }
-    delegate = scorer or MockScorer(
-        settings.key_rate, {code: product.margin_pp for code, product in products.items()}
-    )
+    try:
+        delegate = select_scorer(
+            settings, scorer, {code: product.margin_pp for code, product in products.items()}
+        )
+    except ScorerUnavailableError:
+        _technical_audit(session, application, 'scorer_configuration')
+        return application
     company_features = CompanyFeatures.model_validate(snapshot.data['company'])
     if application.status == 'checking':
         rows = run_checks(

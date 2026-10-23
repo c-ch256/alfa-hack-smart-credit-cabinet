@@ -1,19 +1,46 @@
 """Contract, artifact and public serialization tests (real saved model)."""
 import copy
 import json
-from pathlib import Path
 import shutil
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import pytest
 
 from ml.credit_policy import risk_band
-from ml.dto import ScoringRequest, ScoringResult, PublicResult
-from ml.errors import InputValidationError, SchemaVersionError, ArtifactError, OutOfDomainError
-from ml.features import CONTRACT_DIR, INPUT_FIELDS, build_features, request_to_row, row_to_request, schema_validator
+from ml.dto import PublicResult, ScoringRequest, ScoringResult
+from ml.errors import (
+    ArtifactError,
+    InputValidationError,
+    OutOfDomainError,
+    SchemaVersionError,
+)
+from ml.features import (
+    CONTRACT_DIR,
+    INPUT_FIELDS,
+    build_features,
+    request_to_row,
+    row_to_request,
+    schema_validator,
+)
 from ml.inference import ModelScorer
-from ml.train import read_data, split_data
+from ml.train import preprocessing_digest, read_data, split_data
+
+
+def test_preprocessing_digest_is_portable(tmp_path, monkeypatch):
+    source_root = Path(__file__).parents[1]
+    expected = preprocessing_digest()
+    for name in ('features.py', 'model.py'):
+        source = (source_root / name).read_bytes()
+        (tmp_path / name).write_bytes(source.replace(b'\r\n', b'\n').replace(b'\n', b'\r\n'))
+    monkeypatch.setattr('ml.train.ROOT', tmp_path)
+    assert preprocessing_digest() == expected
+    metadata = json.loads((source_root / 'artifacts' / 'metadata.json').read_text())
+    assert metadata['preprocessing_sha256'] == expected
+    with (tmp_path / 'features.py').open('ab') as source:
+        source.write(b'\n# changed preprocessing')
+    assert preprocessing_digest() != expected
 
 @pytest.fixture(scope="module")
 def scorer():

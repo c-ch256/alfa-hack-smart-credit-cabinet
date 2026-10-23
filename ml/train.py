@@ -1,17 +1,17 @@
 """Train a validated LR Pipeline; choose regularization using validation only."""
 import argparse
-from datetime import datetime, timezone
 import hashlib
 import importlib.metadata
 import json
-from pathlib import Path
 import time
+from datetime import datetime, timezone
+from pathlib import Path
 
 import joblib
 import numpy as np
 import pandas as pd
+from sklearn.metrics import brier_score_loss, log_loss
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import log_loss, brier_score_loss
 
 from ml.dto import CONTRACT_VERSION
 from ml.evaluate import metrics, plots
@@ -25,8 +25,12 @@ def digest(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 def preprocessing_digest():
-    return hashlib.sha256(b"".join((ROOT / name).read_bytes()
-        for name in ("features.py", "model.py"))).hexdigest()
+    # Git normalizes source line endings; hash identical Python source on LF and CRLF hosts.
+    sources = (
+        (ROOT / name).read_bytes().replace(b'\r\n', b'\n')
+        for name in ('features.py', 'model.py')
+    )
+    return hashlib.sha256(b''.join(sources)).hexdigest()
 
 def versions():
     return {name: importlib.metadata.version(name) for name in PACKAGE_NAMES}

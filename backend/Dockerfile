@@ -4,13 +4,16 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
 WORKDIR /app
-COPY requirements.lock ./
+COPY backend/requirements.lock ./
 RUN python -m pip install --no-cache-dir -r requirements.lock \
     && groupadd --system app && useradd --system --gid app --no-create-home app
 
-COPY --chown=app:app app ./app
-COPY --chown=app:app alembic.ini ./alembic.ini
-COPY --chown=app:app alembic ./alembic
+COPY --chown=app:app backend/app ./app
+COPY --chown=app:app backend/alembic.ini ./alembic.ini
+COPY --chown=app:app backend/alembic ./alembic
+COPY --chown=app:app ml/__init__.py ml/dto.py ml/errors.py ml/features.py ml/model.py ml/train.py ml/evaluate.py ml/inference.py ./ml/
+COPY --chown=app:app ml/contracts ./ml/contracts
+COPY --chown=app:app ml/artifacts/metadata.json ml/artifacts/pipeline.joblib ./ml/artifacts/
 USER app
 EXPOSE 8000
 CMD ["sh", "-c", "alembic -c alembic.ini upgrade head && python -m app.seed && exec uvicorn app.main:app --host 0.0.0.0 --port 8000"]
