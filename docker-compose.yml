@@ -28,6 +28,7 @@ services:
       JWT_ISSUER: ${JWT_ISSUER:-craftors-credit-api}
       JWT_AUDIENCE: ${JWT_AUDIENCE:-craftors-credit-cabinet}
       JWT_TTL_MINUTES: ${JWT_TTL_MINUTES:-60}
+      KEY_RATE: ${KEY_RATE:-16.00}
       DEMO_PASSWORD: ${DEMO_PASSWORD:?Set DEMO_PASSWORD in .env}
     depends_on:
       db:

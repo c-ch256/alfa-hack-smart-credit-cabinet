@@ -1,14 +1,16 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, Path, Query, Response
+from fastapi import APIRouter, Depends, Header, Path, Query, Request, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.application_schemas import (
+    AdditionalInfo,
     ApplicationCreate,
     ApplicationPatch,
     ApplicationResponse,
     CompanyResponse,
+    OfferResponse,
     ProductResponse,
     StatusEventResponse,
 )
@@ -19,7 +21,8 @@ from app.application_service import (
     transition,
 )
 from app.deps import get_session, require_role
-from app.models import Application, Company, Product, StatusEvent, User
+from app.models import Application, Company, Offer, Product, StatusEvent, User
+from app.services.workflow import add_information_and_process, submit_and_process
 
 router = APIRouter(tags=['Клиентские заявки'])
 Client = Annotated[User, Depends(require_role('CLIENT'))]
@@ -100,12 +103,55 @@ async def patch_application(
 
 @router.post('/applications/{application_id}/submit', response_model=ApplicationResponse)
 async def submit_application(
-    application_id: ApplicationId, user: Client, session: Db
+    application_id: ApplicationId, user: Client, session: Db, request: Request
 ) -> Application:
-    application = own_application(session, application_id, user)
-    application = transition(session, application, 'submitted', user, 'Клиент отправил заявку')
+    application = submit_and_process(
+        session,
+        application_id,
+        user,
+        request.app.state.settings,
+        scorer=getattr(request.app.state, 'workflow_scorer', None),
+        fns_provider=getattr(request.app.state, 'fns_provider', None),
+        bki_provider=getattr(request.app.state, 'bki_provider', None),
+    )
     session.commit()
     return application
+
+
+@router.post('/applications/{application_id}/additional-info', response_model=ApplicationResponse)
+async def add_application_information(
+    application_id: ApplicationId,
+    payload: AdditionalInfo,
+    user: Client,
+    session: Db,
+    request: Request,
+) -> Application:
+    application = add_information_and_process(
+        session,
+        application_id,
+        user,
+        payload,
+        request.app.state.settings,
+        scorer=getattr(request.app.state, 'workflow_scorer', None),
+        fns_provider=getattr(request.app.state, 'fns_provider', None),
+        bki_provider=getattr(request.app.state, 'bki_provider', None),
+    )
+    session.commit()
+    return application
+
+
+@router.get('/applications/{application_id}/offers', response_model=list[OfferResponse])
+async def application_offers(
+    application_id: ApplicationId, user: Client, session: Db
+) -> list[Offer]:
+    own_application(session, application_id, user)
+    return list(
+        session.scalars(
+            select(Offer)
+            .where(Offer.application_id == application_id)
+            .order_by(Offer.created_at, Offer.id)
+        )
+    )
 
 
 @router.get('/applications/{application_id}/history', response_model=list[StatusEventResponse])

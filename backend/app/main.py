@@ -6,8 +6,10 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.api.applications import router as applications_router
 from app.api.auth import router as auth_router
+from app.api.completion import router as completion_router
 from app.api.health import router as health_router
 from app.api.ready import router as ready_router
+from app.api.staff import router as staff_router
 from app.config import Settings
 from app.db import create_db_engine
 from app.errors import ApiError, api_error_handler, validation_error_handler
@@ -48,6 +50,8 @@ def create_app(settings: Settings | None = None, *, db_engine: Engine | None = N
     app.include_router(ready_router)
     app.include_router(auth_router)
     app.include_router(applications_router)
+    app.include_router(completion_router)
+    app.include_router(staff_router)
     return app
 
 

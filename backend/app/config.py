@@ -1,3 +1,4 @@
+from decimal import Decimal
 from typing import Literal
 
 from pydantic import Field, SecretStr, field_validator, model_validator
@@ -29,6 +30,14 @@ class Settings(BaseSettings):
     )
     jwt_ttl_minutes: int = Field(default=60, ge=1, le=480, validation_alias='JWT_TTL_MINUTES')
     demo_password: SecretStr | None = Field(default=None, validation_alias='DEMO_PASSWORD')
+    key_rate: Decimal = Field(default=Decimal('16.00'), ge=0, le=100, validation_alias='KEY_RATE')
+
+    @field_validator('key_rate')
+    @classmethod
+    def validate_key_rate(cls, value: Decimal) -> Decimal:
+        if not value.is_finite():
+            raise ValueError('KEY_RATE must be finite')
+        return value
 
     @field_validator('jwt_secret')
     @classmethod

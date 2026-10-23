@@ -127,12 +127,16 @@ class Application(Base):
         UniqueConstraint('id', 'company_id', name='uq_applications_id_company'),
         Index('ix_applications_company_status', 'company_id', 'status'),
         Index('ix_applications_created_by_user_id', 'created_by_user_id'),
+        Index('ix_applications_assigned_staff_user_id', 'assigned_staff_user_id'),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     number: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     company_id: Mapped[int] = mapped_column(ForeignKey('companies.id', ondelete='RESTRICT'))
     created_by_user_id: Mapped[int] = mapped_column(ForeignKey('users.id', ondelete='RESTRICT'))
+    assigned_staff_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey('users.id', ondelete='RESTRICT')
+    )
     product_code: Mapped[str] = mapped_column(
         ForeignKey('products.code', ondelete='RESTRICT'), nullable=False
     )
@@ -149,6 +153,7 @@ class Application(Base):
     idempotency_key: Mapped[str | None] = mapped_column(String(128))
     sign_code_hash: Mapped[str | None] = mapped_column(String(255))
     sign_code_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    sign_code_attempts: Mapped[int] = mapped_column(Integer, nullable=False, server_default='0')
     version: Mapped[int] = mapped_column(Integer, nullable=False, server_default='0')
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
@@ -159,7 +164,8 @@ class Application(Base):
 
     company: Mapped[Company] = relationship(back_populates='applications')
     product: Mapped[Product] = relationship()
-    created_by: Mapped[User] = relationship()
+    created_by: Mapped[User] = relationship(foreign_keys=[created_by_user_id])
+    assigned_staff: Mapped[User | None] = relationship(foreign_keys=[assigned_staff_user_id])
     snapshots: Mapped[list['ApplicationSnapshot']] = relationship(back_populates='application')
     offers: Mapped[list['Offer']] = relationship(back_populates='application')
     status_events: Mapped[list['StatusEvent']] = relationship(back_populates='application')

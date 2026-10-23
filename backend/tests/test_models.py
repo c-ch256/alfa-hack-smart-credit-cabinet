@@ -4,7 +4,7 @@ from decimal import Decimal
 
 import pytest
 from alembic.config import Config
-from sqlalchemy import create_engine, event, insert, inspect, select
+from sqlalchemy import create_engine, event, insert, inspect, select, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, configure_mappers
@@ -126,6 +126,79 @@ def test_migration_upgrade_downgrade_and_mapping(tmp_path) -> None:
             command.check(config)
             command.downgrade(config, '0001_initial_empty')
             assert inspect(connection).get_table_names() == ['alembic_version']
+    finally:
+        db_engine.dispose()
+
+
+def test_staff_assignment_migration_preserves_existing_manual_application(tmp_path) -> None:
+    db_engine = create_engine(f'sqlite+pysqlite:///{tmp_path / "assignment.sqlite"}')
+
+    @event.listens_for(db_engine, 'connect')
+    def enable_foreign_keys(dbapi_connection, _connection_record) -> None:
+        cursor = dbapi_connection.cursor()
+        cursor.execute('PRAGMA foreign_keys=ON')
+        cursor.close()
+
+    try:
+        with db_engine.connect() as connection:
+            config = migration_config(connection)
+            command.upgrade(config, '0002_credit_schema')
+            connection.execute(
+                text(
+                    'INSERT INTO users (id, login, password_hash, role, full_name) VALUES '
+                    "(1, 'client1', :hash, 'CLIENT', 'Демо-клиент 1'), "
+                    "(2, 'staff1', :hash, 'STAFF', 'Демо-аналитик')"
+                ),
+                {'hash': synthetic_hash()},
+            )
+            connection.execute(
+                text(
+                    'INSERT INTO products (code, name, terms_version, min_amount, max_amount, '
+                    'min_term_months, max_term_months, margin_pp) VALUES '
+                    "('working_capital', 'Демо', 'demo-1', 300000, 30000000, 3, 36, 4)"
+                )
+            )
+            connection.execute(
+                text(
+                    'INSERT INTO companies (id, owner_user_id, name, inn, legal_form, okved, '
+                    'region, registered_at, bank_client_since, avg_monthly_revenue, '
+                    'avg_monthly_expenses, revenue_trend_6m, existing_monthly_payments) VALUES '
+                    "(1, 1, 'Демо', '0000000000', 'OOO', '47.11', 'Демо-регион', "
+                    "'2020-01-01', '2021-01-01', 1000000, 500000, 0, 0)"
+                )
+            )
+            connection.execute(
+                text(
+                    'INSERT INTO applications (id, number, company_id, created_by_user_id, '
+                    'product_code, status, amount, term_months, purpose, version) VALUES '
+                    "(1, 'SYN-MANUAL', 1, 1, 'working_capital', 'manual_review', "
+                    "3000000, 24, 'Закупка', 1)"
+                )
+            )
+            connection.execute(
+                text(
+                    'INSERT INTO application_snapshots (application_id, version, data) VALUES '
+                    '(1, 1, \'{"amount": 3000000}\')'
+                )
+            )
+            connection.commit()
+            connection.exec_driver_sql('PRAGMA foreign_keys=OFF')
+            command.upgrade(config, 'head')
+            connection.commit()
+            connection.exec_driver_sql('PRAGMA foreign_keys=ON')
+            assert (
+                connection.scalar(
+                    text('SELECT assigned_staff_user_id FROM applications WHERE id = 1')
+                )
+                == 2
+            )
+            assert (
+                connection.scalar(
+                    text('SELECT count(*) FROM application_snapshots WHERE application_id = 1')
+                )
+                == 1
+            )
+            command.check(config)
     finally:
         db_engine.dispose()
 

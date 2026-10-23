@@ -2,7 +2,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 
 
 class StrictInput(BaseModel):
@@ -42,6 +42,27 @@ class ApplicationPatch(StrictInput):
         for name in ('product_code', 'amount', 'term_months', 'purpose'):
             if name in self.model_fields_set and getattr(self, name) is None:
                 raise ValueError(f'{name} не может быть пустым')
+        return self
+
+
+class AdditionalInfo(StrictInput):
+    version: int = Field(strict=True, ge=1)
+    message: str | None = Field(default=None, max_length=2000)
+    purpose_details: str | None = Field(default=None, max_length=2000)
+    investment_object: str | None = Field(default=None, max_length=255)
+    collateral_type: str | None = Field(default=None, max_length=128)
+    collateral_value: int | None = Field(
+        default=None, strict=True, gt=0, le=9_223_372_036_854_775_807
+    )
+
+    @model_validator(mode='after')
+    def has_details(self) -> 'AdditionalInfo':
+        fields = self.model_dump(exclude_unset=True, exclude={'version'})
+        if not fields or any(
+            value is None or isinstance(value, str) and not value.strip()
+            for value in fields.values()
+        ):
+            raise ValueError('Укажите дополнительные сведения')
         return self
 
 
@@ -91,9 +112,32 @@ class ApplicationResponse(BaseModel):
     investment_object: str | None
     collateral_type: str | None
     collateral_value: int | None
+    info_request: str | None
+    info_response: str | None
     version: int
     created_at: datetime
     updated_at: datetime
+
+    @computed_field
+    @property
+    def status_label(self) -> str:
+        labels = {
+            'draft': 'Черновик',
+            'submitted': 'Заявка отправлена',
+            'checking': 'На рассмотрении',
+            'scoring': 'На рассмотрении',
+            'decision': 'На рассмотрении',
+            'needs_info': 'Нужны дополнительные сведения',
+            'manual_review': 'Ручное рассмотрение',
+            'approved': 'Одобрено',
+            'counter_offer': 'Встречное предложение',
+            'accepted': 'Предложение принято',
+            'signed_demo': 'Подписано (демо)',
+            'disbursed_demo': 'Кредит выдан (демо)',
+            'rejected': 'Отказано',
+            'closed': 'Закрыта',
+        }
+        return labels[self.status]
 
 
 class StatusEventResponse(BaseModel):
@@ -105,4 +149,18 @@ class StatusEventResponse(BaseModel):
     actor_role: str
     actor_user_id: int | None
     reason: str | None
+    created_at: datetime
+
+
+class OfferResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    kind: Literal['original', 'counter', 'alternative_product']
+    product_code: str
+    amount: int
+    term_months: int
+    rate: Decimal
+    monthly_payment: int
+    status: str
     created_at: datetime

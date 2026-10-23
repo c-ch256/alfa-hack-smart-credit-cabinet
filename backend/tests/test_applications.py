@@ -141,8 +141,8 @@ def test_create_edit_submit_history_and_idempotency(api: FastAPI) -> None:
             ] == app_id
             submitted = await client.post(f'/applications/{app_id}/submit', headers=headers)
             assert submitted.status_code == 200, submitted.text
-            assert submitted.json()['status'] == 'submitted'
-            assert submitted.json()['version'] == 3
+            assert submitted.json()['status'] == 'approved'
+            assert submitted.json()['version'] == 7
             assert (
                 await client.post(f'/applications/{app_id}/submit', headers=headers)
             ).status_code == 409
@@ -151,16 +151,23 @@ def test_create_edit_submit_history_and_idempotency(api: FastAPI) -> None:
                     f'/applications/{app_id}', headers=headers, json={'purpose': 'Аренда'}
                 )
             ).status_code == 409
-            assert (
-                await client.post(f'/applications/{app_id}/withdraw', headers=headers)
-            ).status_code == 409
             history = (await client.get(f'/applications/{app_id}/history', headers=headers)).json()
             assert [(item['from_status'], item['to_status']) for item in history] == [
                 (None, 'draft'),
                 ('draft', 'submitted'),
+                ('submitted', 'checking'),
+                ('checking', 'scoring'),
+                ('scoring', 'decision'),
+                ('decision', 'approved'),
             ]
-            assert [item['sequence'] for item in history] == [1, 2]
-            assert all(item['actor_role'] == 'CLIENT' and item['actor_user_id'] for item in history)
+            assert [item['sequence'] for item in history] == list(range(1, 7))
+            assert all(
+                item['actor_role'] == 'CLIENT' and item['actor_user_id'] for item in history[:2]
+            )
+            assert all(
+                item['actor_role'] == 'SYSTEM' and item['actor_user_id'] is None
+                for item in history[2:]
+            )
             assert all(item['created_at'] and item['reason'] for item in history)
             second_page = await client.get(
                 f'/applications/{app_id}/history?limit=1&offset=1', headers=headers
@@ -170,9 +177,9 @@ def test_create_edit_submit_history_and_idempotency(api: FastAPI) -> None:
 
     asyncio.run(check())
     with Session(api.state.db_engine) as session:
-        assert session.scalar(select(Application)).status == 'submitted'
-        assert len(list(session.scalars(select(StatusEvent)))) == 2
-        assert len(list(session.scalars(select(AuditEvent)))) == 3
+        assert session.scalar(select(Application)).status == 'approved'
+        assert len(list(session.scalars(select(StatusEvent)))) == 6
+        assert len(list(session.scalars(select(AuditEvent)))) == 8
 
 
 def test_withdraw_and_foreign_objects_are_hidden(api: FastAPI) -> None:
@@ -228,24 +235,6 @@ def test_withdraw_and_foreign_objects_are_hidden(api: FastAPI) -> None:
         ({'amount': 3.5}, 422),
         ({'status': 'approved'}, 422),
         ({'purpose': '  '}, 422),
-        ({'product_code': 'investment', 'amount': 1_000_000}, 422),
-        (
-            {
-                'product_code': 'investment',
-                'amount': 5_000_000,
-                'investment_object': 'Оборудование',
-            },
-            422,
-        ),
-        (
-            {
-                'product_code': 'investment',
-                'amount': 5_000_000,
-                'investment_object': 'Оборудование',
-                'collateral_type': 'Оборудование',
-            },
-            422,
-        ),
     ],
 )
 def test_invalid_product_inputs(api: FastAPI, changes: dict, status: int) -> None:
@@ -292,13 +281,13 @@ def test_investment_valid_and_patch_validation(api: FastAPI) -> None:
                 await client.patch(
                     f'/applications/{app_id}', headers=headers, json={'collateral_type': None}
                 )
-            ).status_code == 422
+            ).status_code == 200
             assert (
                 await client.patch(f'/applications/{app_id}', headers=headers, json={})
             ).status_code == 422
             assert (await client.get(f'/applications/{app_id}', headers=headers)).json()[
                 'version'
-            ] == 1
+            ] == 2
 
     asyncio.run(check())
 

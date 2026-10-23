@@ -44,11 +44,11 @@ TRANSITIONS: dict[tuple[str, str], str] = {
 }
 
 
-def audit(session: Session, application: Application, actor: User, action: str) -> None:
+def audit(session: Session, application: Application, actor: User | None, action: str) -> None:
     session.add(
         AuditEvent(
-            actor_user_id=actor.id,
-            actor_role=actor.role,
+            actor_user_id=actor.id if actor else None,
+            actor_role=actor.role if actor else 'SYSTEM',
             company_id=application.company_id,
             application_id=application.id,
             object_type='application',
@@ -91,14 +91,8 @@ def validate_terms(session: Session, fields: dict) -> None:
         raise ApiError(422, 'INVALID_TERM', 'Срок вне лимитов продукта')
     if not fields['purpose'].strip():
         raise ApiError(422, 'INVALID_PURPOSE', 'Укажите цель кредита')
-    if fields['product_code'] == 'investment':
-        if not (fields.get('investment_object') or '').strip():
-            raise ApiError(422, 'INVESTMENT_OBJECT_REQUIRED', 'Укажите объект инвестиций')
-        if fields['amount'] >= 5_000_000 and (
-            not (fields.get('collateral_type') or '').strip() or not fields.get('collateral_value')
-        ):
-            raise ApiError(422, 'COLLATERAL_REQUIRED', 'Укажите вид и стоимость залога')
-    elif any(
+    # Неполный инвестиционный черновик допустим: DATA запросит сведения при submit.
+    if fields['product_code'] != 'investment' and any(
         fields.get(name) is not None
         for name in ('investment_object', 'collateral_type', 'collateral_value')
     ):
@@ -106,10 +100,11 @@ def validate_terms(session: Session, fields: dict) -> None:
 
 
 def transition(
-    session: Session, application: Application, to_status: str, actor: User, reason: str
+    session: Session, application: Application, to_status: str, actor: User | None, reason: str
 ) -> Application:
     from_status = application.status
-    if TRANSITIONS.get((from_status, to_status)) != actor.role:
+    actor_role = actor.role if actor else 'SYSTEM'
+    if TRANSITIONS.get((from_status, to_status)) != actor_role:
         raise ApiError(409, 'INVALID_TRANSITION', 'Переход статуса недопустим')
     next_version = application.version + 1
     changed = session.execute(
@@ -137,8 +132,8 @@ def transition(
             sequence=sequence,
             from_status=from_status,
             to_status=to_status,
-            actor_role=actor.role,
-            actor_user_id=actor.id,
+            actor_role=actor_role,
+            actor_user_id=actor.id if actor else None,
             reason=reason,
         )
     )
