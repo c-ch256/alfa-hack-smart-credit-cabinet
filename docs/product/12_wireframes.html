@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wireframes кабинета</title>
+<style>
+  :root { --ink:#1f1f1f; --muted:#6b6b6b; --line:#cfcfcf; --soft:#f3f3f3; --bg:#fafafa; --accent:#d9261c; --ok:#2e7d32; --warn:#b26a00; --fail:#c62828; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; color:var(--ink); background:var(--bg); }
+  header.doc { padding:24px 32px 8px; max-width:1344px; margin:0 auto; }
+  header.doc h1 { margin:0 0 4px; font-size:22px; }
+  header.doc p { margin:0; color:var(--muted); }
+  nav.toc { max-width:1344px; margin:12px auto 0; padding:0 32px; display:flex; flex-wrap:wrap; gap:8px; }
+  nav.toc a { font-size:13px; color:var(--ink); background:#fff; border:1px solid var(--line); border-radius:16px; padding:4px 12px; text-decoration:none; }
+  section.screen { max-width:1344px; margin:28px auto; padding:0 32px; }
+  section.screen > h2 { font-size:16px; margin:0 0 4px; }
+  section.screen > p.note { margin:0 0 10px; color:var(--muted); font-size:13px; }
+  .frame { background:#fff; border:1px solid var(--line); border-radius:8px; overflow:hidden; max-width:1280px; }
+  .topbar { display:flex; align-items:center; justify-content:space-between; padding:12px 24px; border-bottom:1px solid var(--line); }
+  .logo { font-weight:700; } .logo span { color:var(--accent); }
+  .topbar .who { color:var(--muted); font-size:13px; }
+  .body { padding:24px; }
+  .row { display:flex; gap:16px; flex-wrap:wrap; }
+  .col { flex:1 1 0; min-width:260px; }
+  .box { border:1px solid var(--line); border-radius:8px; padding:16px; background:#fff; }
+  .box.soft { background:var(--soft); border-style:dashed; }
+  .box h3 { margin:0 0 8px; font-size:15px; }
+  .muted { color:var(--muted); font-size:13px; }
+  .tile { flex:1 1 150px; border:1px solid var(--line); border-radius:8px; padding:16px; text-align:center; min-height:86px; }
+  .tile.sel { border:2px solid var(--accent); }
+  .field { margin:10px 0; } .field label { display:block; font-size:13px; margin-bottom:4px; }
+  .input { border:1px solid var(--line); border-radius:6px; padding:8px 10px; color:var(--muted); background:#fff; }
+  .input.err { border-color:var(--fail); } .errtxt { color:var(--fail); font-size:12px; margin-top:3px; }
+  .btn { display:inline-block; padding:9px 16px; border-radius:6px; border:1px solid var(--ink); font-weight:600; font-size:13px; background:#fff; }
+  .btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .btn.ghost { border-color:var(--line); color:var(--muted); font-weight:500; }
+  .badge { display:inline-block; font-size:12px; padding:2px 8px; border-radius:10px; border:1px solid var(--line); background:var(--soft); }
+  .badge.ok { color:var(--ok); border-color:var(--ok); background:#fff; }
+  .badge.warn { color:var(--warn); border-color:var(--warn); background:#fff; }
+  .badge.fail { color:var(--fail); border-color:var(--fail); background:#fff; }
+  .badge.red { color:#fff; background:var(--accent); border-color:var(--accent); }
+  .stepper { display:flex; gap:0; margin:16px 0 20px; }
+  .step { flex:1; text-align:center; font-size:12px; color:var(--muted); position:relative; padding-top:22px; }
+  .step::before { content:""; position:absolute; top:6px; left:50%; width:12px; height:12px; margin-left:-6px; border-radius:50%; border:2px solid var(--line); background:#fff; }
+  .step::after { content:""; position:absolute; top:12px; left:calc(50% + 8px); right:calc(-50% + 8px); height:2px; background:var(--line); }
+  .step:last-child::after { display:none; }
+  .step.done::before { background:var(--ink); border-color:var(--ink); }
+  .step.now { color:var(--ink); font-weight:600; } .step.now::before { border-color:var(--accent); background:var(--accent); }
+  table { border-collapse:collapse; width:100%; font-size:13px; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:500; }
+  td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .kv { display:grid; grid-template-columns:auto 1fr; gap:4px 16px; font-size:13px; }
+  .kv dt { color:var(--muted); } .kv dd { margin:0; font-variant-numeric:tabular-nums; }
+  .compare td.changed { background:#fff4e5; font-weight:600; }
+  .sms { border:2px dashed var(--accent); border-radius:8px; padding:12px 16px; display:inline-block; }
+  .bar { height:8px; border-radius:4px; background:var(--soft); position:relative; }
+  .bar i { position:absolute; top:0; bottom:0; border-radius:4px; }
+  .bar i.up { left:50%; background:var(--fail); } .bar i.down { right:50%; background:var(--ok); }
+  .annot { border-left:3px solid var(--accent); padding:2px 10px; color:var(--muted); font-size:12px; margin-top:8px; }
+  .sticky { position:sticky; top:16px; }
+  .two { display:grid; grid-template-columns: 1fr 340px; gap:16px; }
+  .states { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:16px; }
+  @media (max-width: 900px) { .two, .states { grid-template-columns: 1fr; } section.screen, header.doc, nav.toc { padding:0 16px; } }
+</style>
+</head>
+<body>
+<header class="doc">
+  <h1>Wireframes: умный кредитный кабинет</h1>
+  <p>Low-fi, D2. Тексты — из <code>10_ux_texts.md</code>, цифры — из демо-профилей (ключевая 14%, маржи +8 / +6 п.п.). Цвет — только акцент главной кнопки и статусы проверок.</p>
+</header>
+<nav class="toc">
+  <a href="#login">1. Вход</a><a href="#pick">2. Подбор и каталог</a><a href="#form">3. Анкета</a>
+  <a href="#card">4. Карточка заявки</a><a href="#states">4а. Состояния «Что сейчас»</a>
+  <a href="#queue">5. Очередь сотрудника</a><a href="#staff">6. Карточка сотрудника</a>
+</nav>
+
+<!-- 1. Вход -->
+<section class="screen" id="login">
+  <h2>1. Вход</h2>
+  <p class="note">Одна форма для обеих ролей; после входа — редирект по роли. Пароль в интерфейсе не храним.</p>
+  <div class="frame"><div class="body" style="display:flex;justify-content:center;padding:48px">
+    <div class="box" style="width:360px">
+      <h3>Вход в кабинет</h3>
+      <div class="field"><label>Логин</label><div class="input">client2</div></div>
+      <div class="field"><label>Пароль</label><div class="input">••••••••</div></div>
+      <span class="btn primary" style="width:100%;text-align:center">Войти</span>
+      <p class="muted" style="margin:14px 0 6px">Демо-учётки: client1–client4, staff1. Пароль — в README</p>
+      <div class="row" style="gap:6px"><span class="badge">client1</span><span class="badge">client2</span><span class="badge">client3</span><span class="badge">client4</span><span class="badge">staff1</span></div>
+    </div>
+  </div></div>
+</section>
+
+<!-- 2. Подбор -->
+<section class="screen" id="pick">
+  <h2>2. Подбор и каталог (главная клиента)</h2>
+  <p class="note">Шаг 1 — цель, сумма, срок → <code>POST /recommendations</code>. Результат — 1–2 продукта с причинами и предварительным платежом. Ниже — весь каталог.</p>
+  <div class="frame">
+    <div class="topbar"><div class="logo"><span>■</span> Кредитный кабинет</div><div class="who">ИП Морозова А. В. · Мои заявки · Выйти</div></div>
+    <div class="body">
+      <h3 style="margin:0 0 12px">На что нужны деньги?</h3>
+      <div class="row">
+        <div class="tile sel">Закупка и оборот<div class="muted">товары, сырьё, аренда</div></div>
+        <div class="tile">Оборудование и транспорт</div>
+        <div class="tile">Ремонт и расширение</div>
+        <div class="tile">Недвижимость</div>
+        <div class="tile">Погасить другие кредиты<div><span class="badge">Скоро</span></div></div>
+      </div>
+      <div class="row" style="margin-top:14px;align-items:flex-end">
+        <div class="field col"><label>Сумма, ₽</label><div class="input">5 000 000</div></div>
+        <div class="field col"><label>Срок, мес.</label><div class="input">12</div></div>
+        <div class="col"><span class="btn primary">Подобрать кредит</span></div>
+      </div>
+      <div class="box" style="margin-top:16px">
+        <div class="row" style="justify-content:space-between"><h3>Оборотный кредит <span class="badge red">Лучше всего подходит</span></h3><span class="btn primary">Оформить</span></div>
+        <div class="row">
+          <div class="col"><div class="kv"><dt>Платёж</dt><dd>≈ 471 589 ₽/мес. (предварительно)</dd><dt>Ставка</dt><dd>≈ 23,5% годовых (предварительно)</dd></div></div>
+          <div class="col"><div class="muted">✓ Подходит для пополнения оборотных средств<br>✓ Срок до 36 мес. снизит платёж</div></div>
+        </div>
+        <div class="box soft" style="margin-top:10px">⚠ Платёж может быть высоким для вашего денежного потока. Комфортная сумма — до 1 480 000 ₽ на 12 мес. или до 3 590 000 ₽ на 36 мес. <span class="btn ghost" style="margin-left:8px">Применить: 3 590 000 ₽ на 36 мес.</span></div>
+        <div class="annot">Цифры — ответ <code>/recommendations</code> для client2 (ставка группы B). Две комфортные суммы (П9) согласованы со встречным предложением: 3 500 000 ₽ на 36 мес.</div>
+      </div>
+      <h3 style="margin:24px 0 10px">Все продукты</h3>
+      <div class="row">
+        <div class="box col"><h3>Оборотный кредит</h3><div class="muted">300 тыс. – 30 млн ₽ · 3–36 мес. · от 22%</div></div>
+        <div class="box col"><h3>Инвестиционный кредит</h3><div class="muted">1–100 млн ₽ · 12–84 мес. · от 20% · залог от 5 млн ₽</div></div>
+        <div class="box col soft"><h3>Рефинансирование <span class="badge">Скоро</span></h3><div class="muted">Перевод кредитов из других банков</div></div>
+        <div class="box col soft"><h3>Овердрафт <span class="badge">Скоро</span></h3><div class="muted">Лимит на счёте при кассовых разрывах</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 3. Анкета -->
+<section class="screen" id="form">
+  <h2>3. Анкета</h2>
+  <p class="note">Клиент вводит 3–6 полей; остальное — блок «Данные из банка». Ошибка — у поля, с подсказкой. «Отправить» блокируется на время запроса.</p>
+  <div class="frame">
+    <div class="topbar"><div class="logo"><span>■</span> Кредитный кабинет</div><div class="who">ИП Морозова А. В.</div></div>
+    <div class="body two">
+      <div>
+        <h3 style="margin:0 0 12px">Заявка: оборотный кредит</h3>
+        <div class="field"><label>Цель кредита</label><div class="input">Закупка товаров и сырья ▾</div></div>
+        <div class="row">
+          <div class="field col"><label>Сумма кредита, ₽</label><div class="input err">50 000 000</div><div class="errtxt">Сумма должна быть от 300 000 ₽ до 30 000 000 ₽</div></div>
+          <div class="field col"><label>Срок, мес.</label><div class="input">36</div><div class="muted">от 3 до 36 мес.</div></div>
+        </div>
+        <div class="field"><label>Комментарий (необязательно)</label><div class="input" style="height:60px">Например: закупка к сезону у постоянного поставщика</div></div>
+        <div class="box soft">Платёж ≈ 133 667 ₽/мес. (предварительно, по ставке от 22%) — для 3 500 000 ₽ на 36 мес.</div>
+        <div class="row" style="margin-top:16px"><span class="btn primary">Отправить заявку</span><span class="btn ghost">Сохранить черновик</span></div>
+        <div class="annot">Инвестиционный кредит: + «Что приобретаете и у кого»; от 5 000 000 ₽ — блок «Залог» (вид — select, стоимость).</div>
+      </div>
+      <div class="box soft">
+        <h3>Данные из банка — вводить не нужно</h3>
+        <p class="muted" style="margin-top:0">Из профиля и выписки по счёту за 12 месяцев</p>
+        <dl class="kv">
+          <dt>Компания</dt><dd>ИП Морозова А. В.</dd><dt>ИНН</dt><dd>500100000002</dd><dt>ОКВЭД</dt><dd>56.10 · Общепит</dd>
+          <dt>Бизнес работает</dt><dd>5 лет</dd><dt>Выручка в месяц</dt><dd>1 300 000 ₽</dd><dt>Расходы в месяц</dt><dd>1 050 000 ₽</dd>
+          <dt>Выручка за 6 мес.</dt><dd>−2%</dd><dt>Платежи по кредитам</dt><dd>60 000 ₽/мес.</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 4. Карточка заявки -->
+<section class="screen" id="card">
+  <h2>4. Карточка заявки (главный экран демо)</h2>
+  <p class="note">Шапка + Stepper из 5 шагов + блок «Что сейчас» (меняется по статусу) + история. Одна главная кнопка.</p>
+  <div class="frame">
+    <div class="topbar"><div class="logo"><span>■</span> Кредитный кабинет</div><div class="who">ИП Морозова А. В.</div></div>
+    <div class="body">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <div><h3 style="margin:0">Заявка CR-261022-4F1A2B · Оборотный кредит</h3><div class="muted">5 000 000 ₽ на 12 мес. · подана 22.10.2026 14:05</div></div>
+        <span class="badge warn">Другое предложение</span>
+      </div>
+      <div class="stepper"><div class="step done">Заявка</div><div class="step done">Рассмотрение</div><div class="step now">Решение</div><div class="step">Подписание</div><div class="step">Выдача</div></div>
+      <div class="box">
+        <h3>Мы можем выдать 3 500 000 ₽ на 36 мес. — платёж будет комфортнее для вашего денежного потока</h3>
+        <table class="compare">
+          <tr><th></th><th class="num">Вы просили</th><th class="num">Мы предлагаем</th></tr>
+          <tr><td>Сумма</td><td class="num">5 000 000 ₽</td><td class="num changed">3 500 000 ₽</td></tr>
+          <tr><td>Срок</td><td class="num">12 мес.</td><td class="num changed">36 мес.</td></tr>
+          <tr><td>Ставка</td><td class="num">—</td><td class="num">22% годовых</td></tr>
+          <tr><td>Платёж в месяц</td><td class="num">—</td><td class="num">133 667 ₽</td></tr>
+          <tr><td>Переплата за весь срок</td><td class="num">—</td><td class="num">1 312 012 ₽</td></tr>
+        </table>
+        <p class="muted"><b>Почему изменились условия:</b> платёж по запрошенным условиям создаёт высокую нагрузку на денежный поток бизнеса</p>
+        <div class="row"><span class="btn primary">Принять предложение</span><span class="btn ghost">Отказаться</span></div>
+      </div>
+      <h3 style="margin:20px 0 8px">История</h3>
+      <table>
+        <tr><th>Когда</th><th>Событие</th><th>Кто</th></tr>
+        <tr><td>22.10.2026 14:05</td><td>Мы подготовили другое предложение</td><td>Система</td></tr>
+        <tr><td>22.10.2026 14:05</td><td>На рассмотрении</td><td>Система</td></tr>
+        <tr><td>22.10.2026 14:05</td><td>Заявка отправлена</td><td>Клиент</td></tr>
+        <tr><td>22.10.2026 14:03</td><td>Черновик создан</td><td>Клиент</td></tr>
+      </table>
+      <div class="annot">Внутренние шаги checking / scoring / decision в истории клиента схлопываются в одно «На рассмотрении».</div>
+    </div>
+  </div>
+</section>
+
+<!-- 4а. Состояния -->
+<section class="screen" id="states">
+  <h2>4а. Блок «Что сейчас» в других статусах</h2>
+  <p class="note">Тот же экран 4; меняется только этот блок, бейдж и активный шаг.</p>
+  <div class="states">
+    <div class="box">
+      <span class="badge">needs_info</span>
+      <h3 style="margin-top:8px">Нужны дополнительные сведения</h3>
+      <p class="muted">Чтобы продолжить рассмотрение, пришлите, пожалуйста:</p>
+      <p>• Для суммы от 5 000 000 ₽ укажите залог: вид и оценочную стоимость</p>
+      <div class="row"><div class="field col"><label>Вид залога</label><div class="input">Оборудование ▾</div></div><div class="field col"><label>Оценочная стоимость, ₽</label><div class="input">9 000 000</div></div></div>
+      <div class="field"><label>Ваш ответ</label><div class="input">Залог — приобретаемая линия</div></div>
+      <span class="btn primary">Отправить сведения</span> <span class="btn ghost">Отозвать заявку</span>
+    </div>
+    <div class="box">
+      <span class="badge">manual_review</span>
+      <h3 style="margin-top:8px">Заявку проверяет специалист</h3>
+      <p class="muted">Ваша заявка требует внимания специалиста банка. Решение появится здесь — следить за почтой или телефоном не нужно.</p>
+      <p>Причина: просрочка 45 дн. за последние 12 мес.</p>
+      <div class="annot">Нет главной кнопки — клиенту ничего не нужно делать. Статус обновляется сам (<code>aria-live</code>).</div>
+    </div>
+    <div class="box">
+      <span class="badge">accepted</span>
+      <h3 style="margin-top:8px">Осталось подписать договор</h3>
+      <p class="muted">3 500 000 ₽ на 36 мес. под 22%, платёж 133 667 ₽/мес.</p>
+      <div class="sms"><b>Демо-SMS:</b> код 482 915, действует 5 минут</div>
+      <p class="muted">В демо-версии код показывается здесь вместо SMS. Реальная подпись не выполняется.</p>
+      <div class="field" style="max-width:220px"><label>Код из SMS</label><div class="input">______</div></div>
+      <span class="btn primary">Подписать договор</span>
+    </div>
+    <div class="box">
+      <span class="badge">rejected</span>
+      <h3 style="margin-top:8px">Сейчас мы не можем выдать кредит</h3>
+      <p><b>Почему:</b></p>
+      <p class="muted">• Бизнес не имеет статуса «действующий» по данным ЕГРЮЛ/ЕГРИП<br>• Просрочка по кредитам более 90 дней за последний год</p>
+      <p><b>Что можно сделать:</b></p>
+      <p class="muted">Проверьте статус компании в ЕГРЮЛ/ЕГРИП. Погасите просрочку — мы сможем рассмотреть заявку, когда кредитная история улучшится.</p>
+      <span class="btn primary">Подобрать кредит</span>
+    </div>
+    <div class="box">
+      <span class="badge ok">disbursed_demo</span>
+      <h3 style="margin-top:8px">Деньги зачислены на расчётный счёт (демо)</h3>
+      <p class="muted">3 500 000 ₽ поступили на счёт ИП Морозова А. В. Первый платёж — 133 667 ₽. Выдача — имитация, реальные деньги не переводятся.</p>
+      <span class="btn primary">Мои заявки</span>
+    </div>
+    <div class="box">
+      <span class="badge">approved</span>
+      <h3 style="margin-top:8px">Заявка одобрена</h3>
+      <dl class="kv"><dt>Сумма</dt><dd>3 000 000 ₽</dd><dt>Срок</dt><dd>24 мес.</dd><dt>Ставка</dt><dd>22% годовых</dd><dt>Платёж в месяц</dt><dd>155 635 ₽</dd><dt>Переплата</dt><dd>735 240 ₽</dd></dl>
+      <p class="muted">Платёж посилен: денежный поток покрывает все платежи по кредитам в 3,27 раза</p>
+      <span class="btn primary">Принять предложение</span> <span class="btn ghost">Отказаться</span>
+    </div>
+  </div>
+</section>
+
+<!-- 5. Очередь -->
+<section class="screen" id="queue">
+  <h2>5. Очередь сотрудника</h2>
+  <p class="note">Вкладки-фильтры по статусам, по умолчанию «Ручное рассмотрение» со счётчиком. Сортировка — по дате обновления.</p>
+  <div class="frame">
+    <div class="topbar"><div class="logo"><span>■</span> Кабинет сотрудника</div><div class="who">Смирнова Е. О. · Аудит · Выйти</div></div>
+    <div class="body">
+      <div class="row" style="gap:8px;margin-bottom:12px"><span class="badge red">Ручное рассмотрение (1)</span><span class="badge">Запрос сведений</span><span class="badge">Встречное</span><span class="badge">Одобрена</span><span class="badge">Отказ</span><span class="badge">Все</span></div>
+      <table>
+        <tr><th>Номер</th><th>Компания</th><th>Продукт</th><th class="num">Сумма</th><th>Статус</th><th>Обновлено</th><th>Риск</th></tr>
+        <tr><td>CR-261022-9C3D11</td><td>ООО «Гранит-Строй»</td><td>Оборотный</td><td class="num">4 000 000 ₽</td><td><span class="badge warn">Ручное рассмотрение</span></td><td>22.10.2026 14:20</td><td><span class="badge warn">C</span></td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- 6. Карточка сотрудника -->
+<section class="screen" id="staff">
+  <h2>6. Карточка заявки сотрудника</h2>
+  <p class="note">Вся картина на одном экране; решение — справа (sticky), в 2–3 клика, комментарий обязателен. Открытие карточки пишется в аудит.</p>
+  <div class="frame">
+    <div class="topbar"><div class="logo"><span>■</span> Кабинет сотрудника</div><div class="who">Смирнова Е. О.</div></div>
+    <div class="body two">
+      <div>
+        <div class="row" style="justify-content:space-between"><h3 style="margin:0">CR-261022-9C3D11 · ООО «Гранит-Строй»</h3><span class="badge warn">Ручное рассмотрение</span></div>
+        <p class="muted">Причина: просрочка 45 дн. за последние 12 мес. — заявку оценит специалист</p>
+        <div class="row">
+          <div class="box col"><h3>Компания</h3><dl class="kv"><dt>ИНН</dt><dd>7801000003</dd><dt>ОКВЭД</dt><dd>41.20 · Строительство</dd><dt>Выручка / расходы</dt><dd>6 500 000 / 5 400 000 ₽</dd><dt>Платежи по кредитам</dt><dd>380 000 ₽/мес.</dd><dt>Выручка за 6 мес.</dt><dd>−5%</dd></dl></div>
+          <div class="box col"><h3>Заявка</h3><dl class="kv"><dt>Продукт</dt><dd>Оборотный</dd><dt>Сумма / срок</dt><dd>4 000 000 ₽ / 24 мес.</dd><dt>Цель</dt><dd>Закупка товаров и сырья</dd></dl></div>
+        </div>
+        <div class="box" style="margin-top:16px"><h3>Проверки</h3>
+          <table>
+            <tr><td>DATA</td><td><span class="badge ok">Норма</span></td><td>Анкета заполнена полностью</td></tr>
+            <tr><td>FNS</td><td><span class="badge warn">Внимание</span></td><td>Статус: active; флаги: задолженность по налогам <span class="muted">▸ payload</span></td></tr>
+            <tr><td>BKI</td><td><span class="badge warn">Внимание</span></td><td>Кредитов: 3; макс. просрочка за 12 мес.: 45 дн.; дефолтов: 0 <span class="muted">▸ payload</span></td></tr>
+          </table>
+        </div>
+        <div class="box" style="margin-top:16px"><h3>Оценка риска</h3>
+          <div class="row"><div class="col"><span style="font-size:22px;font-weight:700">PD 16,9%</span> <span class="badge warn">Группа C</span></div><div class="col muted">Модель: scorecard-1.0.0</div></div>
+          <table style="margin-top:8px">
+            <tr><td style="width:50%">Просрочка 45 дн. за последние 12 мес.</td><td><div class="bar"><i class="up" style="width:40%"></i></div></td><td class="num">+1,58</td></tr>
+            <tr><td>Бизнес работает 7,1 лет</td><td><div class="bar"><i class="down" style="width:16%"></i></div></td><td class="num">−0,61</td></tr>
+            <tr><td>Есть задолженность по налогам (данные ФНС)</td><td><div class="bar"><i class="up" style="width:15%"></i></div></td><td class="num">+0,60</td></tr>
+            <tr><td>Клиент банка 6,7 лет</td><td><div class="bar"><i class="down" style="width:10%"></i></div></td><td class="num">−0,40</td></tr>
+          </table>
+          <div class="annot">Топ-4 фактора и веса — ответ API (MockScorer); при подключении ML придут из <code>score.reasons[].contribution</code>.</div>
+        </div>
+        <div class="box" style="margin-top:16px"><h3>История</h3><div class="muted">draft → submitted → checking → scoring → decision → manual_review</div></div>
+      </div>
+      <div>
+        <div class="box sticky">
+          <h3>Решение</h3>
+          <div class="row" style="gap:6px"><span class="btn">Одобрить</span><span class="btn" style="border-color:var(--accent);color:var(--accent)">Встречное</span><span class="btn">Отказать</span></div>
+          <div class="field"><label>Сумма, ₽</label><div class="input">2 000 000</div></div>
+          <div class="field"><label>Срок, мес.</label><div class="input">24</div></div>
+          <div class="muted">Платёж ≈ 106 744 ₽/мес. по ставке 25% (группа C) · в лимитах продукта ✓</div>
+          <div class="field"><label>Обоснование (клиент увидит его)</label><div class="input" style="height:60px">Снижаем лимит из-за просрочки</div></div>
+          <span class="btn primary" style="width:100%;text-align:center">Отправить встречное</span>
+          <p style="margin:10px 0 0"><span class="btn ghost" style="width:100%;text-align:center">Запросить сведения</span></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+</body>
+</html>
