@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     )
     jwt_ttl_minutes: int = Field(default=60, ge=1, le=480, validation_alias='JWT_TTL_MINUTES')
     demo_password: SecretStr | None = Field(default=None, validation_alias='DEMO_PASSWORD')
-    key_rate: Decimal = Field(default=Decimal('16.00'), ge=0, le=100, validation_alias='KEY_RATE')
+    key_rate: Decimal = Field(default=Decimal('14.00'), ge=0, le=100, validation_alias='KEY_RATE')
     scorer: Literal['mock', 'model'] = Field(default='mock', validation_alias='SCORER')
     model_dir: Path | None = Field(default=None, validation_alias='MODEL_DIR')
 

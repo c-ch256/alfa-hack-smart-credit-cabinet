@@ -18,10 +18,13 @@ from app.application_service import (
     create_application,
     edit_application,
     own_application,
+    own_company,
     transition,
 )
+from app.contract_schemas import CompanyRequisites
 from app.deps import get_session, require_role
 from app.models import Application, Company, Offer, Product, StatusEvent, User
+from app.services.contracts import _borrower
 from app.services.workflow import add_information_and_process, submit_and_process
 
 router = APIRouter(tags=['Клиентские заявки'])
@@ -39,6 +42,13 @@ async def list_companies(user: Client, session: Db) -> list[Company]:
             select(Company).where(Company.owner_user_id == user.id).order_by(Company.id)
         )
     )
+
+
+@router.get('/me/companies/{company_id}/requisites', response_model=CompanyRequisites)
+async def company_requisites(
+    company_id: Annotated[int, Path(gt=0, le=2_147_483_647)], user: Client, session: Db
+) -> dict:
+    return _borrower(own_company(session, company_id, user)) | {'demonstration': True}
 
 
 @router.get('/products', response_model=list[ProductResponse])

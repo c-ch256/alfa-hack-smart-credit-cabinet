@@ -77,6 +77,14 @@ DEMO_COMPANIES = (
     ),
 )
 
+# Вымышленные учебные значения; нулевые номера не являются действующими реквизитами.
+DEMO_REQUISITES = {
+    '0000000000': ('0000000000001', 'Демо-адрес 1, вымышленный', '00000000000000000001'),
+    '000000000001': ('000000000000002', 'Демо-адрес 2, вымышленный', '00000000000000000002'),
+    '0000000002': ('0000000000003', 'Демо-адрес 3, вымышленный', '00000000000000000003'),
+    '0000000003': ('0000000000004', 'Демо-адрес 4, вымышленный', '00000000000000000004'),
+}
+
 
 def seed_demo_users(engine: Engine, settings: Settings) -> int:
     if settings.demo_password is None:
@@ -154,9 +162,17 @@ def seed_demo_catalog(engine: Engine) -> None:
             registered,
         ) in DEMO_COMPANIES:
             company = session.scalar(select(Company).where(Company.inn == inn))
+            registration_number, legal_address, settlement_account = DEMO_REQUISITES[inn]
             if company is not None:
                 if company.owner_user_id != users[login]:
                     raise ValueError('demo company conflicts with expected owner')
+                if company.registration_number is None:
+                    company.registration_number = registration_number
+                    company.legal_address = legal_address
+                    company.settlement_account = settlement_account
+                    company.bank_bik = '000000000'
+                    company.bank_name = 'Демо-Банк (вымышленный)'
+                    company.correspondent_account = '00000000000000000000'
                 continue
             session.add(
                 Company(
@@ -164,6 +180,12 @@ def seed_demo_catalog(engine: Engine) -> None:
                     name=name,
                     inn=inn,
                     legal_form=legal_form,
+                    registration_number=registration_number,
+                    legal_address=legal_address,
+                    settlement_account=settlement_account,
+                    bank_bik='000000000',
+                    bank_name='Демо-Банк (вымышленный)',
+                    correspondent_account='00000000000000000000',
                     okved=okved,
                     industry=industry,
                     region='Демо-регион',
