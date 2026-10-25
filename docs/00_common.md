@@ -71,7 +71,7 @@
 
 | Кто | Переходы |
 |---|---|
-| CLIENT | draft→submitted · draft→closed · needs_info→checking (дослал сведения) · needs_info→closed · approved→accepted · approved→closed · counter_offer→accepted · counter_offer→closed · accepted→signed_demo |
+| CLIENT | draft→submitted · draft→closed · needs_info→checking (дослал сведения) · needs_info→closed · manual_review→closed (отзыв заявки) · approved→accepted · approved→closed · counter_offer→accepted · counter_offer→closed · accepted→signed_demo |
 | SYSTEM | submitted→checking · checking→scoring · checking→needs_info · checking→rejected (стоп-фактор) · scoring→decision · decision→{approved, counter_offer, manual_review, rejected} · signed_demo→disbursed_demo |
 | STAFF | manual_review→{approved, counter_offer, rejected, needs_info} |
 

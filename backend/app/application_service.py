@@ -22,6 +22,7 @@ TRANSITIONS: dict[tuple[str, str], str] = {
     ('draft', 'closed'): 'CLIENT',
     ('needs_info', 'checking'): 'CLIENT',
     ('needs_info', 'closed'): 'CLIENT',
+    ('manual_review', 'closed'): 'CLIENT',
     ('approved', 'accepted'): 'CLIENT',
     ('approved', 'closed'): 'CLIENT',
     ('counter_offer', 'accepted'): 'CLIENT',
