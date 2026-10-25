@@ -1,0 +1,134 @@
+[
+  {
+    "scenario": "client1_approve_candidate",
+    "scoring": {
+      "application_id": "demo-0",
+      "pd": 0.0006857068701641725,
+      "risk_band": "A",
+      "model_version": "logistic-v2-b758b66495a04782",
+      "reasons": [
+        {
+          "feature": "num__principal_coverage",
+          "text": "Внутренний вклад преобразованного признака в log-odds",
+          "effect": "decreases_risk",
+          "contribution": -1.5153045556802593
+        },
+        {
+          "feature": "num__log_loan_ratio",
+          "text": "Внутренний вклад преобразованного признака в log-odds",
+          "effect": "decreases_risk",
+          "contribution": -0.9941714354648392
+        },
+        {
+          "feature": "num__log_revenue",
+          "text": "Внутренний вклад преобразованного признака в log-odds",
+          "effect": "increases_risk",
+          "contribution": 0.32291946245528536
+        },
+        {
+          "feature": "num__collateral_coverage",
+          "text": "Внутренний вклад преобразованного признака в log-odds",
+          "effect": "increases_risk",
+          "contribution": 0.2818078071295246
+        }
+      ],
+      "request_hash": "8f11cc47a797010dfa5679201fbfecb1f7a8cbb8473824d13415e35e03825115",
+      "details": {
+        "units": "log-odds relative to fitted intercept",
+        "intercept": -5.135876118948822,
+        "log_odds": -7.284374382451349,
+        "contribution_sum": -2.1484982635025274
+      },
+      "technical_status": "OK",
+      "schema_version": "2.0"
+    }
+  },
+  {
+    "scenario": "client2_counter_offer_candidate",
+    "scoring": {
+      "application_id": "demo-1",
+      "pd": 0.0220083532631936,
+      "risk_band": "A",
+      "model_version": "logistic-v2-b758b66495a04782",
+      "reasons": [
+        {
+          "feature": "num__principal_coverage",
+          "text": "Внутренний вклад преобразованного признака в log-odds",
+          "effect": "increases_risk",
+          "contribution": 0.7025558655335724
+        },
+        {
+          "feature": "num__collateral_coverage",
+          "text": "Внутренний вклад преобразованного признака в log-odds",
+          "effect": "increases_risk",
+          "contribution": 0.2818078071295246
+        },
+        {
+          "feature": "num__business_age_months",
+          "text": "Внутренний вклад преобразованного признака в log-odds",
+          "effect": "increases_risk",
+          "contribution": 0.2247056589427575
+        },
+        {
+          "feature": "num__revenue_trend_6m",
+          "text": "Внутренний вклад преобразованного признака в log-odds",
+          "effect": "increases_risk",
+          "contribution": 0.14782853047078276
+        }
+      ],
+      "request_hash": "4403469be60ad877fc25718b7a941f0095ac4536e05676583e5f8bac6aac35b3",
+      "details": {
+        "units": "log-odds relative to fitted intercept",
+        "intercept": -5.135876118948822,
+        "log_odds": -3.794079053755031,
+        "contribution_sum": 1.341797065193791
+      },
+      "technical_status": "OK",
+      "schema_version": "2.0"
+    }
+  },
+  {
+    "scenario": "client3_manual_review",
+    "scoring": {
+      "application_id": "demo-2",
+      "pd": 0.05794634516806207,
+      "risk_band": "B",
+      "model_version": "logistic-v2-b758b66495a04782",
+      "reasons": [
+        {
+          "feature": "num__log_loan_ratio",
+          "text": "Внутренний вклад преобразованного признака в log-odds",
+          "effect": "decreases_risk",
+          "contribution": -0.9847947224639013
+        },
+        {
+          "feature": "num__tax_debt",
+          "text": "Внутренний вклад преобразованного признака в log-odds",
+          "effect": "increases_risk",
+          "contribution": 0.9763310702154282
+        },
+        {
+          "feature": "num__max_overdue_days_12m",
+          "text": "Внутренний вклад преобразованного признака в log-odds",
+          "effect": "increases_risk",
+          "contribution": 0.7049719208621757
+        },
+        {
+          "feature": "num__log_revenue",
+          "text": "Внутренний вклад преобразованного признака в log-odds",
+          "effect": "increases_risk",
+          "contribution": 0.36937580547329657
+        }
+      ],
+      "request_hash": "b61d54ecd0006eb425bf23e8249536123b661b3eac055fe4f2328d8f9ee1b8d3",
+      "details": {
+        "units": "log-odds relative to fitted intercept",
+        "intercept": -5.135876118948822,
+        "log_odds": -2.7885447322911023,
+        "contribution_sum": 2.3473313866577197
+      },
+      "technical_status": "OK",
+      "schema_version": "2.0"
+    }
+  }
+]

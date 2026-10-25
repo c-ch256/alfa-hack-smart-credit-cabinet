@@ -1,0 +1,17 @@
+{
+  "load_ms": 23.15989999624435,
+  "single_call_p50_ms": 81.78324999607867,
+  "single_call_p95_ms": 158.1022400037909,
+  "iterations": 100,
+  "batch_size": 30,
+  "batch_ms": 195.16020000446588,
+  "rss_before_bytes": 149655552,
+  "rss_after_bytes": 152223744,
+  "peak_working_set_bytes": 152223744,
+  "platform": "Windows-11-10.0.26200-SP0",
+  "processor": "Intel64 Family 6 Model 142 Stepping 12, GenuineIntel",
+  "logical_cpus": 8,
+  "python": "3.12.10",
+  "includes": "validation, pipeline preprocessing, predict_proba, coefficient contributions, result schema",
+  "sla": "No approved SLA; measurements describe this machine only."
+}

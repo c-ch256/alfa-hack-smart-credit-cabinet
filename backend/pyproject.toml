@@ -12,6 +12,11 @@ dependencies = [
     'PyJWT==2.15.1',
     'SQLAlchemy==2.0.53',
     'uvicorn==0.40.0',
+    'numpy==2.5.4',
+    'pandas==3.0.6',
+    'scikit-learn==1.9.1',
+    'joblib==1.6.0',
+    'jsonschema==4.26.0',
 ]
 
 [project.optional-dependencies]

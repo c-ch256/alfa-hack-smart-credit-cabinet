@@ -1,0 +1,133 @@
+{
+  "working_capital": {
+    "decision": {
+      "application_id": "demo-0",
+      "status": "ELIGIBLE",
+      "codes": [
+        "WITHIN_POLICY"
+      ],
+      "dscr": 3.265194007761813,
+      "annual_rate": 0.22000000000000003,
+      "monthly_payment": 155634.46394320726
+    },
+    "offers": [
+      {
+        "application_id": "demo-0",
+        "product_code": "working_capital",
+        "amount": 3000000,
+        "term_months": 36,
+        "annual_rate": 0.22000000000000003,
+        "monthly_payment": 114571.35953432845,
+        "dscr": 3.8367855384676197,
+        "rank_score": 0.9493095468218905
+      },
+      {
+        "application_id": "demo-0",
+        "product_code": "working_capital",
+        "amount": 3000000,
+        "term_months": 24,
+        "annual_rate": 0.22000000000000003,
+        "monthly_payment": 155634.46394320726,
+        "dscr": 3.265194007761813,
+        "rank_score": 0.9481218453522642
+      },
+      {
+        "application_id": "demo-0",
+        "product_code": "working_capital",
+        "amount": 2700000,
+        "term_months": 24,
+        "annual_rate": 0.22000000000000003,
+        "monthly_payment": 140071.01754888654,
+        "dscr": 3.4605932198147515,
+        "rank_score": 0.9183096608170378
+      }
+    ],
+    "candidates_evaluated": 18
+  },
+  "investment": {
+    "decision": {
+      "application_id": "demo-investment",
+      "status": "ELIGIBLE",
+      "codes": [
+        "WITHIN_POLICY"
+      ],
+      "dscr": 3.8878443293824896,
+      "annual_rate": 0.2,
+      "monthly_payment": 111490.75007922137
+    },
+    "offers": [
+      {
+        "application_id": "demo-investment",
+        "product_code": "investment",
+        "amount": 3000000,
+        "term_months": 36,
+        "annual_rate": 0.2,
+        "monthly_payment": 111490.75007922137,
+        "dscr": 3.8878443293824896,
+        "rank_score": 0.9628364166402595
+      },
+      {
+        "application_id": "demo-investment",
+        "product_code": "investment",
+        "amount": 3000000,
+        "term_months": 60,
+        "annual_rate": 0.2,
+        "monthly_payment": 79481.65114495828,
+        "dscr": 4.511693154905725,
+        "rank_score": 0.9512838940627917
+      },
+      {
+        "application_id": "demo-investment",
+        "product_code": "investment",
+        "amount": 3000000,
+        "term_months": 84,
+        "annual_rate": 0.2,
+        "monthly_payment": 66618.59787244625,
+        "dscr": 4.822670464039977,
+        "rank_score": 0.9414301643455482
+      }
+    ],
+    "candidates_evaluated": 30
+  },
+  "declined": {
+    "decision": {
+      "application_id": "demo-declined",
+      "status": "DECLINED",
+      "codes": [
+        "STOP_FACTOR"
+      ],
+      "dscr": null,
+      "annual_rate": null,
+      "monthly_payment": null
+    },
+    "offers": [],
+    "candidates_evaluated": 0
+  },
+  "public_working_capital": {
+    "application_id": "demo-0",
+    "message_code": "PROCESSING_COMPLETED",
+    "offers": [
+      {
+        "product_code": "working_capital",
+        "amount": 3000000,
+        "term_months": 36,
+        "annual_rate": 0.22000000000000003,
+        "monthly_payment": 114571.35953432845
+      },
+      {
+        "product_code": "working_capital",
+        "amount": 3000000,
+        "term_months": 24,
+        "annual_rate": 0.22000000000000003,
+        "monthly_payment": 155634.46394320726
+      },
+      {
+        "product_code": "working_capital",
+        "amount": 2700000,
+        "term_months": 24,
+        "annual_rate": 0.22000000000000003,
+        "monthly_payment": 140071.01754888654
+      }
+    ]
+  }
+}

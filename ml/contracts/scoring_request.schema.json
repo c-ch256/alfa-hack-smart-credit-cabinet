@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Craftors ScoringRequest v1",
+  "description": "MVP contract. Monetary fields in integer RUB; trend is decimal fraction, e.g. 0.04 = +4%.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "product_code",
+    "amount",
+    "term_months",
+    "collateral_value",
+    "company",
+    "bki",
+    "fns"
+  ],
+  "properties": {
+    "product_code": {
+      "type": "string",
+      "enum": [
+        "working_capital",
+        "investment"
+      ]
+    },
+    "amount": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "term_months": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "collateral_value": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "company": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "legal_form",
+        "okved",
+        "region",
+        "business_age_months",
+        "bank_client_months",
+        "avg_monthly_revenue",
+        "avg_monthly_expenses",
+        "revenue_trend_6m",
+        "existing_monthly_payments"
+      ],
+      "properties": {
+        "legal_form": {
+          "type": "string",
+          "enum": [
+            "OOO",
+            "IP"
+          ]
+        },
+        "okved": {
+          "type": "string",
+          "minLength": 1
+        },
+        "region": {
+          "type": "string",
+          "minLength": 1
+        },
+        "business_age_months": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "bank_client_months": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "avg_monthly_revenue": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "avg_monthly_expenses": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "revenue_trend_6m": {
+          "type": "number",
+          "minimum": -1
+        },
+        "existing_monthly_payments": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "bki": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "active_loans",
+        "max_overdue_days_12m",
+        "total_debt",
+        "defaults"
+      ],
+      "properties": {
+        "active_loans": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_overdue_days_12m": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "total_debt": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "defaults": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "fns": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "tax_debt",
+        "mass_address"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "active",
+            "liquidating",
+            "liquidated",
+            "inactive"
+          ]
+        },
+        "tax_debt": {
+          "type": "boolean"
+        },
+        "mass_address": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

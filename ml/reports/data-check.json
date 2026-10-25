@@ -1,0 +1,15 @@
+{
+  "rows": 15000,
+  "input_fields": 20,
+  "positive_labels": 978,
+  "default_rate": 0.0652,
+  "duplicate_complete_rows": 0,
+  "empty_required_values": 0,
+  "nonfinite_numbers": 0,
+  "type_range_product_and_financial_consistency": "passed",
+  "date_start": "2023-10-24",
+  "date_end": "2025-10-23",
+  "csv_sha256": "ca082ea7962fddd299f9c9dfc16d90739b5ae3f17d5e7d791ebea1d2f48c6ead",
+  "matches_existing_metadata": true,
+  "scope": "CSV checks using Python stdlib; not model training or full JSON Schema test suite"
+}

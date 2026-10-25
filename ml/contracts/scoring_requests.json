@@ -1,0 +1,98 @@
+[
+  {
+    "scenario": "client1_approve_candidate",
+    "expected_policy_path": "approve_if_pd_below_0.12_and_dscr_at_least_1.25",
+    "request": {
+      "product_code": "working_capital",
+      "amount": 3000000,
+      "term_months": 24,
+      "collateral_value": 0,
+      "company": {
+        "legal_form": "OOO",
+        "okved": "47.11",
+        "region": "Москва",
+        "business_age_months": 127,
+        "bank_client_months": 89,
+        "avg_monthly_revenue": 4200000,
+        "avg_monthly_expenses": 3300000,
+        "revenue_trend_6m": 0.04,
+        "existing_monthly_payments": 120000
+      },
+      "bki": {
+        "active_loans": 1,
+        "max_overdue_days_12m": 0,
+        "total_debt": 1200000,
+        "defaults": 0
+      },
+      "fns": {
+        "status": "active",
+        "tax_debt": false,
+        "mass_address": false
+      }
+    }
+  },
+  {
+    "scenario": "client2_counter_offer_candidate",
+    "expected_policy_path": "counter_offer_if_requested_terms_fail_but_alternative_meets_policy",
+    "request": {
+      "product_code": "working_capital",
+      "amount": 5000000,
+      "term_months": 12,
+      "collateral_value": 0,
+      "company": {
+        "legal_form": "IP",
+        "okved": "56.10",
+        "region": "Санкт-Петербург",
+        "business_age_months": 60,
+        "bank_client_months": 36,
+        "avg_monthly_revenue": 1300000,
+        "avg_monthly_expenses": 1050000,
+        "revenue_trend_6m": -0.04,
+        "existing_monthly_payments": 60000
+      },
+      "bki": {
+        "active_loans": 1,
+        "max_overdue_days_12m": 5,
+        "total_debt": 700000,
+        "defaults": 0
+      },
+      "fns": {
+        "status": "active",
+        "tax_debt": false,
+        "mass_address": false
+      }
+    }
+  },
+  {
+    "scenario": "client3_manual_review",
+    "expected_policy_path": "manual_review_due_to_45_days_overdue",
+    "request": {
+      "product_code": "working_capital",
+      "amount": 4000000,
+      "term_months": 24,
+      "collateral_value": 0,
+      "company": {
+        "legal_form": "OOO",
+        "okved": "41.20",
+        "region": "Санкт-Петербург",
+        "business_age_months": 48,
+        "bank_client_months": 30,
+        "avg_monthly_revenue": 5400000,
+        "avg_monthly_expenses": 4800000,
+        "revenue_trend_6m": -0.07,
+        "existing_monthly_payments": 410000
+      },
+      "bki": {
+        "active_loans": 3,
+        "max_overdue_days_12m": 45,
+        "total_debt": 8000000,
+        "defaults": 0
+      },
+      "fns": {
+        "status": "active",
+        "tax_debt": true,
+        "mass_address": false
+      }
+    }
+  }
+]

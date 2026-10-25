@@ -1,0 +1,40 @@
+{
+  "n_samples": 15000,
+  "seed": 42,
+  "csv_sha256": "ca082ea7962fddd299f9c9dfc16d90739b5ae3f17d5e7d791ebea1d2f48c6ead",
+  "default_rate": 0.0652,
+  "columns": [
+    "product_code",
+    "amount",
+    "term_months",
+    "collateral_value",
+    "legal_form",
+    "okved",
+    "region",
+    "business_age_months",
+    "bank_client_months",
+    "avg_monthly_revenue",
+    "avg_monthly_expenses",
+    "revenue_trend_6m",
+    "existing_monthly_payments",
+    "active_loans",
+    "max_overdue_days_12m",
+    "total_debt",
+    "defaults",
+    "status",
+    "tax_debt",
+    "mass_address",
+    "application_date",
+    "default_12m"
+  ],
+  "as_of_date": "2026-10-23",
+  "generator_version": "3.0.0-contract-v1",
+  "target_default_rate": 0.065,
+  "label": "90+ days overdue within 12 months after issuance",
+  "limitations": [
+    "Synthetic metrics do not establish quality on real data.",
+    "Issued loans only; rejected applications excluded.",
+    "MVP stop rules exclude historical defaults and overdue above 90 days.",
+    "No temporal drift simulated."
+  ]
+}

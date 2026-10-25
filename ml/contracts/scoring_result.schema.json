@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Craftors ScoringResult v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "pd",
+    "risk_band",
+    "model_version",
+    "reasons"
+  ],
+  "properties": {
+    "pd": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "risk_band": {
+      "type": "string",
+      "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ]
+    },
+    "model_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reasons": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "feature",
+          "text",
+          "effect",
+          "contribution"
+        ],
+        "properties": {
+          "feature": {
+            "type": "string",
+            "minLength": 1
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "effect": {
+            "type": "string",
+            "enum": [
+              "increases_risk",
+              "decreases_risk"
+            ]
+          },
+          "contribution": {
+            "type": "number"
+          }
+        }
+      }
+    }
+  }
+}

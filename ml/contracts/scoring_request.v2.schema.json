@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ScoringRequest envelope v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "application_id",
+    "request"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "2.0"
+    },
+    "application_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "request": {
+      "$ref": "urn:craftors:scoring-request-v1"
+    }
+  }
+}

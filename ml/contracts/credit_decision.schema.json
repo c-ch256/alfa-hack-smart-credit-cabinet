@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Internal CreditDecision v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "application_id",
+    "status",
+    "codes",
+    "dscr",
+    "annual_rate",
+    "monthly_payment"
+  ],
+  "properties": {
+    "application_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "enum": [
+        "ELIGIBLE",
+        "DECLINED",
+        "MANUAL_REVIEW",
+        "INSUFFICIENT_DATA"
+      ]
+    },
+    "codes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "dscr": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "annual_rate": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "monthly_payment": {
+      "type": [
+        "number",
+        "null"
+      ]
+    }
+  }
+}

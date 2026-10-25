@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PublicResult v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "application_id",
+    "message_code",
+    "offers"
+  ],
+  "properties": {
+    "application_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "message_code": {
+      "const": "PROCESSING_COMPLETED"
+    },
+    "offers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "product_code",
+          "amount",
+          "term_months",
+          "annual_rate",
+          "monthly_payment"
+        ],
+        "properties": {
+          "product_code": {
+            "enum": [
+              "working_capital",
+              "investment"
+            ]
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "term_months": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "annual_rate": {
+            "type": "number",
+            "minimum": 0
+          },
+          "monthly_payment": {
+            "type": "number",
+            "minimum": 0
+          }
+        }
+      }
+    }
+  }
+}
