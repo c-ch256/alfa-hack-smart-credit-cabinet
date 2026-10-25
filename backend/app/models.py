@@ -399,6 +399,22 @@ class CreditContract(Base):
     )
 
 
+class StaffComment(Base):
+    __tablename__ = 'staff_comments'
+    __table_args__ = (
+        CheckConstraint('length(trim(body)) > 0', name='ck_staff_comments_body_nonempty'),
+        Index('ix_staff_comments_application_created', 'application_id', 'created_at'),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    application_id: Mapped[int] = mapped_column(ForeignKey('applications.id', ondelete='RESTRICT'))
+    author_user_id: Mapped[int] = mapped_column(ForeignKey('users.id', ondelete='RESTRICT'))
+    body: Mapped[str] = mapped_column(String(2000), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
 class StatusEvent(Base):
     __tablename__ = 'status_events'
     __table_args__ = (
