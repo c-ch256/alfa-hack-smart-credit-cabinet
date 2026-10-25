@@ -1,6 +1,8 @@
 """Демонстрационный расчёт условий MVP; ставки не являются тарифами банка."""
 
+from calendar import monthrange
 from dataclasses import dataclass
+from datetime import date
 from decimal import ROUND_HALF_UP, Decimal, localcontext
 
 from app.models import Product
@@ -65,6 +67,41 @@ def payment_totals(amount: int, monthly_payment: int, term_months: int) -> tuple
         raise ValueError('term_months must be a positive integer')
     total = monthly_payment * term_months
     return total, total - amount
+
+
+def payment_schedule(
+    amount: int, rate: Decimal, term_months: int, first_payment_date: date
+) -> list[dict[str, int | str]]:
+    """Целые рубли, ROUND_HALF_UP; последний платёж закрывает весь остаток."""
+    standard_payment = annuity_payment(amount, rate, term_months)
+    balance = amount
+    rows = []
+    for index in range(term_months):
+        month_offset = first_payment_date.month - 1 + index
+        year = first_payment_date.year + month_offset // 12
+        month = month_offset % 12 + 1
+        day = min(first_payment_date.day, monthrange(year, month)[1])
+        interest = int(
+            (Decimal(balance) * rate / Decimal('1200')).quantize(RUBLE, rounding=ROUND_HALF_UP)
+        )
+        principal = (
+            balance
+            if index == term_months - 1
+            else min(balance, max(0, standard_payment - interest))
+        )
+        payment = principal + interest
+        balance -= principal
+        rows.append(
+            {
+                'number': index + 1,
+                'payment_date': date(year, month, day).isoformat(),
+                'payment_rub': payment,
+                'interest_rub': interest,
+                'principal_rub': principal,
+                'balance_rub': balance,
+            }
+        )
+    return rows
 
 
 def dscr(

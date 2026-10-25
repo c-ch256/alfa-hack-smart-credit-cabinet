@@ -73,6 +73,12 @@ class CompanyResponse(BaseModel):
     name: str
     inn: str
     legal_form: str
+    registration_number: str | None
+    legal_address: str | None
+    settlement_account: str | None
+    bank_bik: str | None
+    bank_name: str | None
+    correspondent_account: str | None
     okved: str
     industry: str | None
     region: str

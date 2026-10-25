@@ -53,6 +53,21 @@ class Company(Base):
     __table_args__ = (
         CheckConstraint("legal_form IN ('OOO', 'IP')", name='ck_companies_legal_form'),
         CheckConstraint('length(inn) IN (10, 12)', name='ck_companies_inn_length'),
+        CheckConstraint(
+            'registration_number IS NULL OR '
+            "(legal_form = 'OOO' AND length(registration_number) = 13) OR "
+            "(legal_form = 'IP' AND length(registration_number) = 15)",
+            name='ck_companies_registration_number',
+        ),
+        CheckConstraint(
+            'settlement_account IS NULL OR length(settlement_account) = 20',
+            name='ck_companies_settlement_account',
+        ),
+        CheckConstraint('bank_bik IS NULL OR length(bank_bik) = 9', name='ck_companies_bank_bik'),
+        CheckConstraint(
+            'correspondent_account IS NULL OR length(correspondent_account) = 20',
+            name='ck_companies_correspondent_account',
+        ),
         CheckConstraint('avg_monthly_revenue >= 0', name='ck_companies_revenue_nonnegative'),
         CheckConstraint('avg_monthly_expenses >= 0', name='ck_companies_expenses_nonnegative'),
         CheckConstraint('existing_monthly_payments >= 0', name='ck_companies_payments_nonnegative'),
@@ -65,6 +80,12 @@ class Company(Base):
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     inn: Mapped[str] = mapped_column(String(12), unique=True, nullable=False)
     legal_form: Mapped[str] = mapped_column(String(8), nullable=False)
+    registration_number: Mapped[str | None] = mapped_column(String(15))
+    legal_address: Mapped[str | None] = mapped_column(String(255))
+    settlement_account: Mapped[str | None] = mapped_column(String(20))
+    bank_bik: Mapped[str | None] = mapped_column(String(9))
+    bank_name: Mapped[str | None] = mapped_column(String(200))
+    correspondent_account: Mapped[str | None] = mapped_column(String(20))
     okved: Mapped[str] = mapped_column(String(16), nullable=False)
     industry: Mapped[str | None] = mapped_column(String(128))
     region: Mapped[str] = mapped_column(String(128), nullable=False)
@@ -359,6 +380,23 @@ class Offer(Base):
     application: Mapped[Application] = relationship(back_populates='offers')
     decision_record: Mapped[Decision] = relationship(viewonly=True)
     product: Mapped[Product] = relationship()
+
+
+class CreditContract(Base):
+    __tablename__ = 'credit_contracts'
+    __table_args__ = (
+        UniqueConstraint('application_id', name='uq_credit_contracts_application'),
+        CheckConstraint('schema_version = 1', name='ck_credit_contracts_schema_version'),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    offer_id: Mapped[int] = mapped_column(ForeignKey('offers.id', ondelete='RESTRICT'), unique=True)
+    application_id: Mapped[int] = mapped_column(ForeignKey('applications.id', ondelete='RESTRICT'))
+    schema_version: Mapped[int] = mapped_column(Integer, nullable=False, server_default='1')
+    terms: Mapped[dict[str, Any]] = mapped_column(json_type, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
 
 class StatusEvent(Base):

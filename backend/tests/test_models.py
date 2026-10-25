@@ -203,6 +203,79 @@ def test_staff_assignment_migration_preserves_existing_manual_application(tmp_pa
         db_engine.dispose()
 
 
+def test_contract_migration_preserves_existing_accepted_offer(tmp_path) -> None:
+    db_engine = create_engine(f'sqlite+pysqlite:///{tmp_path / "contracts.sqlite"}')
+    try:
+        with db_engine.connect() as connection:
+            config = migration_config(connection)
+            command.upgrade(config, '0004_sign_code_attempts')
+            connection.execute(
+                text(
+                    'INSERT INTO users (id, login, password_hash, role, full_name) '
+                    "VALUES (1, 'historical', :hash, 'CLIENT', 'Демо')"
+                ),
+                {'hash': synthetic_hash()},
+            )
+            connection.execute(
+                text(
+                    'INSERT INTO products (code, name, terms_version, min_amount, max_amount, '
+                    'min_term_months, max_term_months, margin_pp) VALUES '
+                    "('working_capital', 'Демо', 'demo-1', 300000, 30000000, 3, 36, 4)"
+                )
+            )
+            connection.execute(
+                text(
+                    'INSERT INTO companies (id, owner_user_id, name, inn, legal_form, okved, '
+                    'region, registered_at, bank_client_since, avg_monthly_revenue, '
+                    'avg_monthly_expenses, revenue_trend_6m, existing_monthly_payments) VALUES '
+                    "(1, 1, 'Историческая компания', '0000000011', 'OOO', '47.11', "
+                    "'Демо', '2020-01-01', '2021-01-01', 1000000, 500000, 0, 0)"
+                )
+            )
+            connection.execute(
+                text(
+                    'INSERT INTO applications (id, number, company_id, created_by_user_id, '
+                    'product_code, status, amount, term_months, purpose, version) VALUES '
+                    "(1, 'OLD-1', 1, 1, 'working_capital', 'accepted', 3000000, 24, 'Закупка', 1)"
+                )
+            )
+            connection.execute(
+                text(
+                    'INSERT INTO application_snapshots (id, application_id, version, data) '
+                    "VALUES (1, 1, 1, '{}')"
+                )
+            )
+            connection.execute(
+                text(
+                    'INSERT INTO decisions (id, application_id, snapshot_id, decision, '
+                    'created_by, rule_version, rationale) VALUES '
+                    "(1, 1, 1, 'approve', 'SYSTEM', 'old', '[]')"
+                )
+            )
+            connection.execute(
+                text(
+                    'INSERT INTO offers (id, application_id, decision_id, kind, product_code, '
+                    'amount, term_months, rate, monthly_payment, status, created_by) VALUES '
+                    "(1, 1, 1, 'original', 'working_capital', 3000000, 24, 20, 152000, "
+                    "'accepted', 'SYSTEM')"
+                )
+            )
+            connection.commit()
+            command.upgrade(config, 'head')
+            assert connection.scalar(text('SELECT rate FROM offers WHERE id = 1')) == 20
+            assert (
+                connection.scalar(text('SELECT status FROM applications WHERE id = 1'))
+                == 'accepted'
+            )
+            assert connection.scalar(text('SELECT name FROM companies WHERE id = 1')) == (
+                'Историческая компания'
+            )
+            assert connection.scalar(text('SELECT count(*) FROM credit_contracts')) == 0
+            command.check(config)
+    finally:
+        db_engine.dispose()
+
+
 def test_complete_history_and_exact_financial_types(engine: Engine) -> None:
     user_id, application_id, snapshot_id = seed_application(engine)
     scoring_input = {'amount': 3_000_000, 'company': {'avg_monthly_revenue': 4_200_000}}

@@ -12,8 +12,9 @@ from sqlalchemy.orm import Session
 from app.application_service import audit, own_application, transition, validate_terms
 from app.config import Settings
 from app.errors import ApiError
-from app.models import Application, Offer, Product, User
+from app.models import Application, CreditContract, Offer, Product, User
 from app.services.checks import check_data
+from app.services.contracts import build_contract
 
 CODE_TTL = timedelta(minutes=5)
 MAX_CODE_ATTEMPTS = 5
@@ -70,8 +71,10 @@ def accept_offer(session: Session, offer_id: int, actor: User) -> Application:
     validate_terms(session, fields)
     if check_data(fields, session.get(Product, offer.product_code)).status != 'ok':
         raise ApiError(422, 'MISSING_PRODUCT_DATA', 'Не хватает сведений для продукта')
+    terms = build_contract(offer, application, on_date=datetime.now(UTC).date())
     transition(session, application, 'accepted', actor, 'Клиент принял предложение')
     _change_offer_status(session, offer, 'accepted')
+    session.add(CreditContract(offer_id=offer.id, application_id=application.id, terms=terms))
     audit(session, application, actor, 'offer.accept')
     session.flush()
     return application
