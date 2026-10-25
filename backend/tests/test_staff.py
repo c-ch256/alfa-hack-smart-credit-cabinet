@@ -9,6 +9,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from test_applications import api, auth, company_id, create  # noqa: F401 -- pytest fixture
 
+from app.application_service import TRANSITIONS, transition
 from app.errors import ApiError
 from app.models import (
     Application,
@@ -420,6 +421,140 @@ def test_staff_requests_info_then_client_rechecks(api: FastAPI) -> None:
             )
             == 1
         )
+
+
+def test_client_withdraws_manual_review_and_blocks_staff(api: FastAPI) -> None:
+    async def check() -> int:
+        async with AsyncClient(
+            transport=ASGITransport(app=api), base_url='http://testserver'
+        ) as client:
+            app_id, owner = await manual_application(client)
+            staff = await auth(client, 'staff1')
+            other = await auth(client, 'client2')
+            queue = await client.get('/staff/applications?status=manual_review', headers=staff)
+            assert any(item['id'] == app_id for item in queue.json())
+            assert (
+                await client.post(f'/applications/{app_id}/withdraw', headers=other)
+            ).status_code == 404
+            withdrawn = await client.post(f'/applications/{app_id}/withdraw', headers=owner)
+            assert withdrawn.status_code == 200
+            assert withdrawn.json()['status'] == 'closed'
+            assert (
+                await client.post(f'/applications/{app_id}/withdraw', headers=owner)
+            ).status_code == 409
+            history = (await client.get(f'/applications/{app_id}/history', headers=owner)).json()
+            assert history[-1]['from_status'] == 'manual_review'
+            assert history[-1]['to_status'] == 'closed'
+            assert history[-1]['actor_role'] == 'CLIENT'
+            assert history[-1]['reason'] == 'Клиент отозвал заявку'
+            assert [event['sequence'] for event in history] == list(range(1, len(history) + 1))
+            queue = await client.get('/staff/applications?status=manual_review', headers=staff)
+            assert all(item['id'] != app_id for item in queue.json())
+            assert (
+                await client.post(
+                    f'/staff/applications/{app_id}/decision',
+                    headers=staff,
+                    json={'decision': 'reject', 'comment': 'Демо-решение'},
+                )
+            ).status_code == 409
+            assert (
+                await client.post(
+                    f'/staff/applications/{app_id}/request-info',
+                    headers=staff,
+                    json={'message': 'Дополнительные сведения'},
+                )
+            ).status_code == 409
+            assert (await client.get(f'/staff/applications/{app_id}', headers=staff)).json()[
+                'application'
+            ]['status'] == 'closed'
+            return app_id
+
+    app_id = asyncio.run(check())
+    with Session(api.state.db_engine) as session:
+        assert session.get(Application, app_id).status == 'closed'
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(AuditEvent)
+                .where(
+                    AuditEvent.application_id == app_id,
+                    AuditEvent.action == 'application.closed',
+                    AuditEvent.actor_role == 'CLIENT',
+                )
+            )
+            == 1
+        )
+        assert (
+            session.scalar(
+                select(func.count()).select_from(Decision).where(Decision.application_id == app_id)
+            )
+            == 0
+        )
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(StatusEvent)
+                .where(StatusEvent.application_id == app_id)
+            )
+            == 7
+        )
+
+
+def test_stale_staff_decision_after_withdraw_rolls_back(api: FastAPI) -> None:
+    async def setup() -> int:
+        async with AsyncClient(
+            transport=ASGITransport(app=api), base_url='http://testserver'
+        ) as client:
+            application_id, _ = await manual_application(client)
+            return application_id
+
+    application_id = asyncio.run(setup())
+    payload = ManualDecisionInput(decision='reject', comment='Синтетическое решение')
+    with (
+        Session(api.state.db_engine) as client_session,
+        Session(api.state.db_engine) as staff_session,
+    ):
+        owner = client_session.scalar(select(User).where(User.login == 'client3'))
+        employee = staff_session.scalar(select(User).where(User.login == 'staff1'))
+        staff_session.get(Application, application_id)
+        application = client_session.get(Application, application_id)
+        transition(client_session, application, 'closed', owner, 'Клиент отозвал заявку')
+        client_session.commit()
+        with pytest.raises(ApiError) as error:
+            make_manual_decision(
+                staff_session, application_id, employee, payload, api.state.settings
+            )
+        assert error.value.status_code == 409
+        staff_session.rollback()
+    with Session(api.state.db_engine) as session:
+        assert session.get(Application, application_id).status == 'closed'
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(Decision)
+                .where(Decision.application_id == application_id, Decision.created_by == 'STAFF')
+            )
+            == 0
+        )
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(AuditEvent)
+                .where(
+                    AuditEvent.application_id == application_id,
+                    AuditEvent.action == 'staff.decision',
+                )
+            )
+            == 0
+        )
+
+
+@pytest.mark.parametrize(
+    'status',
+    ['checking', 'scoring', 'decision', 'accepted', 'signed_demo', 'disbursed_demo'],
+)
+def test_withdraw_remains_forbidden_outside_client_states(status: str) -> None:
+    assert TRANSITIONS.get((status, 'closed')) is None
 
 
 def test_stale_staff_decision_rolls_back(api: FastAPI) -> None:
