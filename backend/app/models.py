@@ -446,6 +446,30 @@ class StatusEvent(Base):
     actor: Mapped[User | None] = relationship()
 
 
+class StaffComment(Base):
+    __tablename__ = 'staff_comments'
+    __table_args__ = (
+        CheckConstraint(
+            'length(trim(body)) BETWEEN 1 AND 2000', name='ck_staff_comments_body_length'
+        ),
+        Index('ix_staff_comments_application_id_id', 'application_id', 'id'),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    application_id: Mapped[int] = mapped_column(
+        ForeignKey('applications.id', ondelete='RESTRICT'), nullable=False
+    )
+    author_user_id: Mapped[int] = mapped_column(
+        ForeignKey('users.id', ondelete='RESTRICT'), nullable=False
+    )
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    author: Mapped[User] = relationship()
+
+
 class AuditEvent(Base):
     __tablename__ = 'audit_events'
     __table_args__ = (

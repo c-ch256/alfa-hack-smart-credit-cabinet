@@ -107,7 +107,13 @@ def _technical_audit(session: Session, application: Application, phase: str) -> 
     session.flush()
 
 
-def _policy_audit(session: Session, application: Application, result: PolicyResult) -> None:
+def _policy_audit(
+    session: Session,
+    application: Application,
+    result: PolicyResult,
+    decision: Decision | None = None,
+    offer: Offer | None = None,
+) -> None:
     session.add(
         AuditEvent(
             actor_user_id=None,
@@ -120,7 +126,13 @@ def _policy_audit(session: Session, application: Application, result: PolicyResu
             result='success',
             correlation_id=uuid4().hex,
             rule_version=result.rule_version,
-            details={'decision': result.decision, 'reason_codes': list(result.reason_codes)},
+            details={
+                'status': application.status,
+                'decision': result.decision,
+                'decision_id': decision.id if decision else None,
+                'offer_id': offer.id if offer else None,
+                'reason_codes': list(result.reason_codes),
+            },
         )
     )
 
@@ -228,9 +240,9 @@ def _record_decision(
     snapshot: ApplicationSnapshot,
     result: PolicyResult,
     recorder: RecordingScorer | None,
-) -> None:
+) -> tuple[Decision | None, Offer | None]:
     if result.decision not in ('approve', 'counter', 'reject'):
-        return
+        return None, None
     score = None
     if recorder is not None:
         if result.offer is not None:
@@ -266,23 +278,25 @@ def _record_decision(
     )
     session.add(decision)
     session.flush()
+    offer_row = None
     if result.offer is not None:
         offered = result.offer
         if offered.product_code not in ('working_capital', 'investment'):
             raise AssessmentUnavailableError('offer product unavailable')
-        session.add(
-            Offer(
-                application_id=application.id,
-                decision_id=decision.id,
-                kind=offered.kind,
-                product_code=offered.product_code,
-                amount=offered.amount,
-                term_months=offered.term_months,
-                rate=offered.rate,
-                monthly_payment=offered.monthly_payment,
-                created_by='SYSTEM',
-            )
+        offer_row = Offer(
+            application_id=application.id,
+            decision_id=decision.id,
+            kind=offered.kind,
+            product_code=offered.product_code,
+            amount=offered.amount,
+            term_months=offered.term_months,
+            rate=offered.rate,
+            monthly_payment=offered.monthly_payment,
+            created_by='SYSTEM',
         )
+        session.add(offer_row)
+        session.flush()
+    return decision, offer_row
 
 
 def _claim_retry(session: Session, application: Application) -> None:
@@ -444,11 +458,19 @@ def process_application(
                     session, application, 'needs_info', None, 'Требуются дополнительные сведения'
                 )
             else:
-                _record_decision(session, application, snapshot, preliminary, None)
+                decision, offer = _record_decision(
+                    session, application, snapshot, preliminary, None
+                )
                 transition(
                     session, application, 'rejected', None, 'Решение по демонстрационным правилам'
                 )
-            _policy_audit(session, application, preliminary)
+            _policy_audit(
+                session,
+                application,
+                preliminary,
+                decision if preliminary.decision == 'reject' else None,
+                offer if preliminary.decision == 'reject' else None,
+            )
             return application
         transition(session, application, 'scoring', None, 'Начата оценка заявки')
     else:
@@ -497,7 +519,7 @@ def process_application(
         application.assigned_staff_user_id = staff_id
         session.flush()
     transition(session, application, 'decision', None, 'Оценка заявки завершена')
-    _record_decision(session, application, snapshot, result, recorder)
+    decision, offer = _record_decision(session, application, snapshot, result, recorder)
     destination = {
         'approve': 'approved',
         'counter': 'counter_offer',
@@ -505,5 +527,5 @@ def process_application(
         'reject': 'rejected',
     }[result.decision]
     transition(session, application, destination, None, 'Решение по демонстрационным правилам')
-    _policy_audit(session, application, result)
+    _policy_audit(session, application, result, decision, offer)
     return application

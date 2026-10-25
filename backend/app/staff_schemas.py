@@ -2,15 +2,90 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.application_schemas import (
     ApplicationResponse,
     CompanyResponse,
     OfferResponse,
+    ProductResponse,
     StatusEventResponse,
     StrictInput,
 )
+
+
+class StaffProductCatalog(BaseModel):
+    products: list[ProductResponse]
+    key_rate: Decimal
+    risk_premium_pp: dict[str, Decimal]
+    rate_formula: Literal['key_rate + margin_pp + risk_premium_pp']
+    demonstration: bool
+
+
+class LoanPreviewInput(StrictInput):
+    application_id: int = Field(strict=True, gt=0, le=2_147_483_647)
+    product_code: str = Field(min_length=1, max_length=32, pattern=r'^[a-z_]+$')
+    amount: int = Field(strict=True, gt=0, le=9_223_372_036_854_775_807)
+    term_months: int = Field(strict=True, gt=0, le=1200)
+
+
+class ProductLimits(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    min_amount: int
+    max_amount: int
+    min_term_months: int
+    max_term_months: int
+
+
+class LoanPreviewResponse(BaseModel):
+    application_id: int
+    snapshot_id: int
+    snapshot_version: int
+    product: ProductResponse
+    amount: int
+    term_months: int
+    risk_band: Literal['A', 'B', 'C', 'D']
+    key_rate: Decimal
+    risk_premium_pp: Decimal
+    pd: Decimal
+    model_version: str
+    score_source: Literal['mock', 'model']
+    is_test_result: bool
+    scoring_reasons: list[dict[str, Any]]
+    annual_rate: Decimal
+    monthly_payment: int
+    dscr: Decimal
+    total_payments: int
+    overpayment: int
+    applied_constraints: ProductLimits
+    indicative: bool
+    demonstration: bool
+    explanation: str
+
+
+class StaffCommentInput(StrictInput):
+    body: str = Field(min_length=1, max_length=2000)
+
+    @field_validator('body')
+    @classmethod
+    def nonblank_body(cls, value: str) -> str:
+        trimmed = value.strip()
+        if not trimmed:
+            raise ValueError('Укажите текст комментария')
+        return trimmed
+
+
+class StaffCommentResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    application_id: int
+    author_user_id: int
+    body: str
+    created_at: datetime
+    audit_event_id: int | None = None
+    status_event_id: int | None = None
 
 
 class ManualDecisionInput(StrictInput):
@@ -35,13 +110,21 @@ class ManualDecisionInput(StrictInput):
         return self
 
 
+RequestInfoField = Literal[
+    'purpose_details', 'investment_object', 'collateral_type', 'collateral_value'
+]
+
+
 class RequestInfoInput(StrictInput):
-    message: str = Field(min_length=1, max_length=2000)
+    fields: list[RequestInfoField] = Field(min_length=1, max_length=4)
+    comment: str = Field(min_length=1, max_length=2000)
 
     @model_validator(mode='after')
-    def validate_message(self) -> 'RequestInfoInput':
-        if not self.message.strip():
-            raise ValueError('Укажите запрашиваемые сведения')
+    def validate_request(self) -> 'RequestInfoInput':
+        if not self.comment.strip():
+            raise ValueError('Укажите внутренний комментарий')
+        if len(set(self.fields)) != len(self.fields):
+            raise ValueError('Поля запроса не должны повторяться')
         return self
 
 
@@ -72,6 +155,33 @@ class StaffScoreResponse(BaseModel):
     created_at: datetime
 
 
+class StaffDscrResponse(BaseModel):
+    scope: Literal['original_application', 'offer']
+    offer_id: int | None
+    snapshot_version: int
+    product_code: str | None
+    amount: int | None
+    term_months: int | None
+    rate: Decimal | None
+    value: Decimal | None
+    explanation: str | None
+
+
+class StaffDecisionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    snapshot_id: int
+    score_id: int | None
+    decision: Literal['approve', 'counter', 'reject']
+    created_by: Literal['SYSTEM', 'STAFF']
+    created_by_user_id: int | None
+    rule_version: str
+    rationale: list[str]
+    created_at: datetime
+    internal_comment: str | None = None
+
+
 class StaffApplicationDetail(BaseModel):
     application: ApplicationResponse
     company: CompanyResponse
@@ -79,8 +189,11 @@ class StaffApplicationDetail(BaseModel):
     company_snapshot: dict[str, Any]
     checks: list[StaffCheckResponse]
     score: StaffScoreResponse | None
+    dscr: list[StaffDscrResponse]
     offers: list[OfferResponse]
     history: list[StatusEventResponse]
+    decisions: list[StaffDecisionResponse]
+    comments: list[StaffCommentResponse]
 
 
 class StaffAuditResponse(BaseModel):
@@ -95,3 +208,15 @@ class StaffAuditResponse(BaseModel):
     rule_version: str | None
     details: dict[str, Any]
     created_at: datetime
+    decision_source: Literal['SYSTEM', 'STAFF'] | None = None
+    internal_comment: str | None = None
+    actor_display_name: str | None = None
+    company_name: str | None = None
+    status_at_event: str | None = None
+    decision_id: int | None = None
+    status_event_id: int | None = None
+    comment_id: int | None = None
+    comment_author_user_id: int | None = None
+    comment_created_at: datetime | None = None
+    offer_id: int | None = None
+    offer_terms: dict[str, Any] | None = None

@@ -45,7 +45,13 @@ TRANSITIONS: dict[tuple[str, str], str] = {
 }
 
 
-def audit(session: Session, application: Application, actor: User | None, action: str) -> None:
+def audit(
+    session: Session,
+    application: Application,
+    actor: User | None,
+    action: str,
+    details: dict | None = None,
+) -> None:
     session.add(
         AuditEvent(
             actor_user_id=actor.id if actor else None,
@@ -57,7 +63,7 @@ def audit(session: Session, application: Application, actor: User | None, action
             action=action,
             result='success',
             correlation_id=uuid4().hex,
-            details={'status': application.status},
+            details={'status': application.status, **(details or {})},
         )
     )
 
@@ -127,19 +133,24 @@ def transition(
         )
         or 0
     ) + 1
-    session.add(
-        StatusEvent(
-            application_id=application.id,
-            sequence=sequence,
-            from_status=from_status,
-            to_status=to_status,
-            actor_role=actor_role,
-            actor_user_id=actor.id if actor else None,
-            reason=reason,
-        )
+    event = StatusEvent(
+        application_id=application.id,
+        sequence=sequence,
+        from_status=from_status,
+        to_status=to_status,
+        actor_role=actor_role,
+        actor_user_id=actor.id if actor else None,
+        reason=reason,
     )
+    session.add(event)
     session.flush()
-    audit(session, application, actor, f'application.{to_status}')
+    audit(
+        session,
+        application,
+        actor,
+        f'application.{to_status}',
+        {'status_event_id': event.id},
+    )
     return application
 
 
