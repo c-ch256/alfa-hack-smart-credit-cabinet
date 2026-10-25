@@ -1219,6 +1219,162 @@
         }
       }
     },
+    "/staff/loan-preview": {
+      "post": {
+        "tags": [
+          "Сотрудник"
+        ],
+        "summary": "Staff Loan Preview",
+        "operationId": "staff_loan_preview_staff_loan_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoanPreviewInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoanPreviewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/staff/applications/{application_id}/comments": {
+      "get": {
+        "tags": [
+          "Сотрудник"
+        ],
+        "summary": "List Staff Comments",
+        "operationId": "list_staff_comments_staff_applications__application_id__comments_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2147483647,
+              "exclusiveMinimum": 0,
+              "title": "Application Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StaffCommentResponse"
+                  },
+                  "title": "Response List Staff Comments Staff Applications  Application Id  Comments Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Сотрудник"
+        ],
+        "summary": "Create Staff Comment",
+        "operationId": "create_staff_comment_staff_applications__application_id__comments_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2147483647,
+              "exclusiveMinimum": 0,
+              "title": "Application Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StaffCommentInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffCommentResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/staff/applications/{application_id}/decision": {
       "post": {
         "tags": [
@@ -2389,6 +2545,129 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "LoanPreviewInput": {
+        "properties": {
+          "application_id": {
+            "type": "integer",
+            "maximum": 2147483647.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Application Id"
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount"
+          },
+          "term_months": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Term Months"
+          },
+          "product_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "working_capital",
+                  "investment"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Code"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "application_id"
+        ],
+        "title": "LoanPreviewInput"
+      },
+      "LoanPreviewResponse": {
+        "properties": {
+          "application_id": {
+            "type": "integer",
+            "title": "Application Id"
+          },
+          "snapshot_id": {
+            "type": "integer",
+            "title": "Snapshot Id"
+          },
+          "snapshot_version": {
+            "type": "integer",
+            "title": "Snapshot Version"
+          },
+          "product_code": {
+            "type": "string",
+            "title": "Product Code"
+          },
+          "amount": {
+            "type": "integer",
+            "title": "Amount"
+          },
+          "term_months": {
+            "type": "integer",
+            "title": "Term Months"
+          },
+          "pd": {
+            "type": "string",
+            "title": "Pd"
+          },
+          "risk_band": {
+            "type": "string",
+            "title": "Risk Band"
+          },
+          "model_version": {
+            "type": "string",
+            "title": "Model Version"
+          },
+          "rate": {
+            "type": "string",
+            "title": "Rate"
+          },
+          "monthly_payment": {
+            "type": "integer",
+            "title": "Monthly Payment"
+          },
+          "dscr": {
+            "type": "string",
+            "title": "Dscr"
+          }
+        },
+        "type": "object",
+        "required": [
+          "application_id",
+          "snapshot_id",
+          "snapshot_version",
+          "product_code",
+          "amount",
+          "term_months",
+          "pd",
+          "risk_band",
+          "model_version",
+          "rate",
+          "monthly_payment",
+          "dscr"
+        ],
+        "title": "LoanPreviewResponse"
+      },
       "LoginRequest": {
         "properties": {
           "login": {
@@ -2743,6 +3022,13 @@
             },
             "type": "array",
             "title": "History"
+          },
+          "internal_comments": {
+            "items": {
+              "$ref": "#/components/schemas/StaffCommentResponse"
+            },
+            "type": "array",
+            "title": "Internal Comments"
           }
         },
         "type": "object",
@@ -2874,6 +3160,56 @@
         ],
         "title": "StaffCheckResponse"
       },
+      "StaffCommentInput": {
+        "properties": {
+          "body": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Body"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "body"
+        ],
+        "title": "StaffCommentInput"
+      },
+      "StaffCommentResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "application_id": {
+            "type": "integer",
+            "title": "Application Id"
+          },
+          "author_user_id": {
+            "type": "integer",
+            "title": "Author User Id"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "application_id",
+          "author_user_id",
+          "body",
+          "created_at"
+        ],
+        "title": "StaffCommentResponse"
+      },
       "StaffScoreResponse": {
         "properties": {
           "id": {
@@ -2970,6 +3306,43 @@
             ],
             "title": "Term Months"
           },
+          "snapshot_id": {
+            "type": "integer",
+            "title": "Snapshot Id"
+          },
+          "rate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rate"
+          },
+          "monthly_payment": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monthly Payment"
+          },
+          "dscr": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dscr"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -2990,6 +3363,10 @@
           "product_code",
           "amount",
           "term_months",
+          "snapshot_id",
+          "rate",
+          "monthly_payment",
+          "dscr",
           "created_at"
         ],
         "title": "StaffScoreResponse"

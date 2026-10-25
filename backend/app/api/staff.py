@@ -18,19 +18,33 @@ from app.models import (
     Application,
     AuditEvent,
     CheckResult,
+    Decision,
     Offer,
+    Product,
     Score,
+    StaffComment,
     StatusEvent,
     User,
 )
-from app.services.staff import make_manual_decision, own_staff_application, request_information
+from app.services.pricing import annual_rate, annuity_payment, dscr
+from app.services.staff import (
+    add_internal_comment,
+    loan_preview,
+    make_manual_decision,
+    request_information,
+    visible_staff_application,
+)
 from app.services.workflow import _latest_snapshot
 from app.staff_schemas import (
+    LoanPreviewInput,
+    LoanPreviewResponse,
     ManualDecisionInput,
     RequestInfoInput,
     StaffApplicationDetail,
     StaffAuditResponse,
     StaffCheckResponse,
+    StaffCommentInput,
+    StaffCommentResponse,
     StaffScoreResponse,
 )
 
@@ -53,7 +67,7 @@ async def list_staff_applications(
 ) -> list[Application]:
     if status is not None and status not in STATUSES:
         raise ApiError(422, 'INVALID_STATUS', 'Неизвестный статус заявки')
-    query = select(Application).where(Application.assigned_staff_user_id == staff.id)
+    query = select(Application).where(Application.status != 'draft')
     if status is not None:
         query = query.where(Application.status == status)
     return list(
@@ -67,9 +81,9 @@ async def list_staff_applications(
 
 @router.get('/applications/{application_id}', response_model=StaffApplicationDetail)
 async def get_staff_application(
-    application_id: ApplicationId, staff: Staff, session: Db
+    application_id: ApplicationId, staff: Staff, session: Db, request: Request
 ) -> StaffApplicationDetail:
-    application = own_staff_application(session, application_id, staff)
+    application = visible_staff_application(session, application_id)
     snapshot = _latest_snapshot(session, application.id)
     checks = {}
     for row in session.scalars(
@@ -84,6 +98,37 @@ async def get_staff_application(
     score_response = None
     if score is not None:
         input_data = score.input_snapshot
+        rate = None
+        payment = None
+        coverage = None
+        if score.result_status == 'success':
+            matching_offer = session.scalar(
+                select(Offer)
+                .join(Decision, Offer.decision_id == Decision.id)
+                .where(Decision.score_id == score.id)
+                .order_by(Offer.id.desc())
+                .limit(1)
+            )
+            if matching_offer is not None:
+                rate = matching_offer.rate
+                payment = matching_offer.monthly_payment
+            elif all(
+                input_data.get(key) is not None for key in ('product_code', 'amount', 'term_months')
+            ):
+                product = session.get(Product, input_data['product_code'])
+                if product is not None:
+                    rate = annual_rate(
+                        request.app.state.settings.key_rate, product.margin_pp, score.risk_band
+                    )
+                    payment = annuity_payment(input_data['amount'], rate, input_data['term_months'])
+            if payment is not None:
+                company_data = snapshot.data['company']
+                coverage = dscr(
+                    company_data['avg_monthly_revenue'],
+                    company_data['avg_monthly_expenses'],
+                    company_data['existing_monthly_payments'],
+                    payment,
+                )
         score_response = StaffScoreResponse(
             id=score.id,
             source=score.source,
@@ -97,6 +142,10 @@ async def get_staff_application(
             product_code=input_data.get('product_code'),
             amount=input_data.get('amount'),
             term_months=input_data.get('term_months'),
+            snapshot_id=score.snapshot_id,
+            rate=rate,
+            monthly_payment=payment,
+            dscr=coverage,
             created_at=score.created_at,
         )
     offers = list(
@@ -120,10 +169,58 @@ async def get_staff_application(
         score=score_response,
         offers=[OfferResponse.model_validate(offer) for offer in offers],
         history=[StatusEventResponse.model_validate(event) for event in events],
+        internal_comments=[
+            StaffCommentResponse.model_validate(row)
+            for row in session.scalars(
+                select(StaffComment)
+                .where(StaffComment.application_id == application.id)
+                .order_by(StaffComment.id)
+            )
+        ],
     )
     audit(session, application, staff, 'staff.view')
     session.commit()
     return detail
+
+
+@router.post('/loan-preview', response_model=LoanPreviewResponse)
+async def staff_loan_preview(
+    payload: LoanPreviewInput, staff: Staff, session: Db, request: Request
+) -> LoanPreviewResponse:
+    result = loan_preview(
+        session,
+        staff,
+        payload,
+        request.app.state.settings,
+        scorer=getattr(request.app.state, 'workflow_scorer', None),
+    )
+    session.commit()
+    return result
+
+
+@router.get('/applications/{application_id}/comments', response_model=list[StaffCommentResponse])
+async def list_staff_comments(
+    application_id: ApplicationId, staff: Staff, session: Db
+) -> list[StaffComment]:
+    visible_staff_application(session, application_id)
+    return list(
+        session.scalars(
+            select(StaffComment)
+            .where(StaffComment.application_id == application_id)
+            .order_by(StaffComment.id)
+        )
+    )
+
+
+@router.post(
+    '/applications/{application_id}/comments', response_model=StaffCommentResponse, status_code=201
+)
+async def create_staff_comment(
+    application_id: ApplicationId, payload: StaffCommentInput, staff: Staff, session: Db
+) -> StaffComment:
+    row = add_internal_comment(session, application_id, staff, payload)
+    session.commit()
+    return row
 
 
 @router.post('/applications/{application_id}/decision', response_model=ApplicationResponse)
@@ -168,11 +265,11 @@ async def staff_audit(
 ) -> list[AuditEvent]:
     application = None
     if application_id is not None:
-        application = own_staff_application(session, application_id, staff)
+        application = visible_staff_application(session, application_id)
     query = (
         select(AuditEvent)
         .join(Application, AuditEvent.application_id == Application.id)
-        .where(Application.assigned_staff_user_id == staff.id)
+        .where(Application.status != 'draft')
     )
     if application is not None:
         query = query.where(AuditEvent.application_id == application.id)
@@ -188,7 +285,7 @@ async def staff_audit(
             action='staff.audit_view',
             result='success',
             correlation_id=uuid4().hex,
-            details={'scope': 'application' if application else 'assigned'},
+            details={'scope': 'application' if application else 'submitted'},
         )
     )
     session.commit()

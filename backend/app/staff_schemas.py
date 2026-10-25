@@ -45,6 +45,48 @@ class RequestInfoInput(StrictInput):
         return self
 
 
+class StaffCommentInput(StrictInput):
+    body: str = Field(min_length=1, max_length=2000)
+
+    @model_validator(mode='after')
+    def validate_body(self) -> 'StaffCommentInput':
+        if not self.body.strip():
+            raise ValueError('Укажите текст комментария')
+        return self
+
+
+class StaffCommentResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    application_id: int
+    author_user_id: int
+    body: str
+    created_at: datetime
+
+
+class LoanPreviewInput(StrictInput):
+    application_id: int = Field(strict=True, gt=0, le=2_147_483_647)
+    amount: int | None = Field(default=None, strict=True, gt=0)
+    term_months: int | None = Field(default=None, strict=True, gt=0)
+    product_code: Literal['working_capital', 'investment'] | None = None
+
+
+class LoanPreviewResponse(BaseModel):
+    application_id: int
+    snapshot_id: int
+    snapshot_version: int
+    product_code: str
+    amount: int
+    term_months: int
+    pd: Decimal
+    risk_band: str
+    model_version: str
+    rate: Decimal
+    monthly_payment: int
+    dscr: Decimal
+
+
 class StaffCheckResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -69,6 +111,10 @@ class StaffScoreResponse(BaseModel):
     product_code: str | None
     amount: int | None
     term_months: int | None
+    snapshot_id: int
+    rate: Decimal | None
+    monthly_payment: int | None
+    dscr: Decimal | None
     created_at: datetime
 
 
@@ -81,6 +127,7 @@ class StaffApplicationDetail(BaseModel):
     score: StaffScoreResponse | None
     offers: list[OfferResponse]
     history: list[StatusEventResponse]
+    internal_comments: list[StaffCommentResponse] = Field(default_factory=list)
 
 
 class StaffAuditResponse(BaseModel):

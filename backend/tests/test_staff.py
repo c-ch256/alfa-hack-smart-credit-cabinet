@@ -1,6 +1,7 @@
 # ruff: noqa: F811 -- импорт pytest fixture используется как параметр тестов
 
 import asyncio
+from decimal import Decimal
 
 import pytest
 from fastapi import FastAPI
@@ -19,6 +20,7 @@ from app.models import (
     Decision,
     Offer,
     Score,
+    StaffComment,
     StatusEvent,
     User,
 )
@@ -186,9 +188,12 @@ def test_staff_queue_card_and_scoped_audit(api: FastAPI) -> None:
             assert (
                 await client.get('/staff/applications?status=approved', headers=staff)
             ).json() == []
-            assert (await client.get('/staff/applications', headers=other_staff)).json() == []
+            assert [
+                item['id']
+                for item in (await client.get('/staff/applications', headers=other_staff)).json()
+            ] == [app_id]
             for path in (f'/staff/applications/{app_id}', f'/staff/audit?application_id={app_id}'):
-                assert (await client.get(path, headers=other_staff)).status_code == 404
+                assert (await client.get(path, headers=other_staff)).status_code == 200
             assert (
                 await client.post(
                     f'/staff/applications/{app_id}/decision',
@@ -229,6 +234,133 @@ def test_staff_queue_card_and_scoped_audit(api: FastAPI) -> None:
             )
         ]
         assert 'staff.view' in actions and 'staff.audit_view' in actions
+
+
+def test_staff_overview_preview_and_internal_comments(api: FastAPI) -> None:
+    with Session(api.state.db_engine) as session:
+        session.add(
+            User(
+                login='staff2',
+                role='STAFF',
+                full_name='Второй аналитик',
+                password_hash=hash_password('synthetic-demo-password-only'),
+                is_active=True,
+            )
+        )
+        session.commit()
+
+    async def check() -> int:
+        async with AsyncClient(
+            transport=ASGITransport(app=api), base_url='http://testserver'
+        ) as client:
+            owner = await auth(client, 'client1')
+            owner_company = await company_id(client, owner)
+            draft = await create(client, owner, owner_company, key='draft-overview')
+            assert draft.status_code == 201
+            draft_id = draft.json()['id']
+            app_id, applicant = await manual_application(client)
+            staff = await auth(client, 'staff1')
+            other_staff = await auth(client, 'staff2')
+            queue = (await client.get('/staff/applications', headers=other_staff)).json()
+            assert [item['id'] for item in queue] == [app_id]
+            assert (
+                await client.get('/staff/applications?status=draft', headers=staff)
+            ).json() == []
+            assert (
+                await client.get(f'/staff/applications/{draft_id}', headers=staff)
+            ).status_code == 404
+            assert (
+                await client.post(
+                    '/staff/loan-preview', headers=staff, json={'application_id': draft_id}
+                )
+            ).status_code == 404
+            assert (
+                await client.get(f'/staff/applications/{app_id}', headers=other_staff)
+            ).status_code == 200
+            assert (
+                await client.post(
+                    f'/staff/applications/{app_id}/request-info',
+                    headers=other_staff,
+                    json={'message': 'Запрос клиента'},
+                )
+            ).status_code == 404
+            preview = await client.post(
+                '/staff/loan-preview',
+                headers=other_staff,
+                json={'application_id': app_id, 'amount': 3_000_000, 'term_months': 36},
+            )
+            assert preview.status_code == 200, preview.text
+            assert (
+                await client.post(
+                    '/staff/loan-preview', headers=applicant, json={'application_id': app_id}
+                )
+            ).status_code == 403
+            values = preview.json()
+            assert values['application_id'] == app_id
+            assert values['snapshot_id'] > 0 and values['snapshot_version'] > 0
+            assert values['amount'] == 3_000_000 and values['term_months'] == 36
+            assert abs(
+                Decimal(str(values['dscr']))
+                - Decimal(2_000_000 - 1_600_000) / (180_000 + values['monthly_payment'])
+            ) < Decimal('0.000000000000000000000000001')
+            detail = (await client.get(f'/staff/applications/{app_id}', headers=staff)).json()
+            assert detail['score']['snapshot_id'] == values['snapshot_id']
+            assert detail['score']['monthly_payment'] > 0
+            assert Decimal(str(detail['score']['dscr'])) > 0
+            assert detail['score']['rate'] is not None
+            assert (
+                await client.post(
+                    f'/staff/applications/{app_id}/comments',
+                    headers=staff,
+                    json={'body': '   '},
+                )
+            ).status_code == 422
+            response = await client.post(
+                f'/staff/applications/{app_id}/comments',
+                headers=other_staff,
+                json={'body': '  Внутренний комментарий  '},
+            )
+            assert response.status_code == 201, response.text
+            assert response.json()['body'] == 'Внутренний комментарий'
+            comments = (
+                await client.get(f'/staff/applications/{app_id}/comments', headers=staff)
+            ).json()
+            assert len(comments) == 1
+            assert (
+                await client.get(f'/staff/applications/{app_id}/comments', headers=applicant)
+            ).status_code == 403
+            client_view = (await client.get(f'/applications/{app_id}', headers=applicant)).json()
+            assert 'Внутренний комментарий' not in str(client_view)
+            assert 'Внутренний комментарий' not in str(
+                (await client.get(f'/applications/{app_id}/history', headers=applicant)).json()
+            )
+
+            class BrokenScorer:
+                def score(self, _request):
+                    raise RuntimeError('synthetic scorer failure')
+
+            api.state.workflow_scorer = BrokenScorer()
+            try:
+                assert (
+                    await client.post(
+                        '/staff/loan-preview', headers=staff, json={'application_id': app_id}
+                    )
+                ).status_code == 503
+            finally:
+                api.state.workflow_scorer = None
+            return app_id
+
+    app_id = asyncio.run(check())
+    with Session(api.state.db_engine) as session:
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(StaffComment)
+                .where(StaffComment.application_id == app_id)
+            )
+            == 1
+        )
+        assert session.get(Application, app_id).status == 'manual_review'
 
 
 @pytest.mark.parametrize(
