@@ -1,75 +1,28 @@
-# React + TypeScript + Vite
+# Frontend CLIENT / STAFF
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Production-интерфейс входит в общий запуск из корня репозитория:
 
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```sh
+docker compose up --build
 ```
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+Откройте **http://localhost:8080**. С другого компьютера в той же сети используйте
+`http://<IP компьютера с Docker>:8080`; порт 8080 должен быть доступен в локальной сети.
+На компьютере проверяющего достаточно Docker с Compose: Node.js и отдельный запуск
+frontend не требуются. Первичное заполнение `.env` описано в [общем README](../README.md).
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Docker собирает Vite-приложение через `npm ci` и `npm run build`. В runtime-образе
+непривилегированный nginx отдаёт только `dist`; Node.js там отсутствует.
+Nginx направляет `/api/*` на сервис `api:8000`, убирая префикс `/api`.
+Авторизация остаётся через Bearer-токен; CLIENT и STAFF используют существующие маршруты.
+Обновление вложенной страницы React Router возвращает `index.html`.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Для разработки frontend отдельно от Docker по-прежнему доступны:
 
+```sh
+npm ci
+npm run dev
 ```
+
+Vite использует тот же `/api`, проксируя запросы на `127.0.0.1:8000`.
+Проверки: `npm run lint` и `npm run build`.

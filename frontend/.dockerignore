@@ -1,0 +1,16 @@
+.git
+.env
+.env.*
+node_modules
+dist
+dist-ssr
+.vite
+.npm
+coverage
+*.log
+*.tsbuildinfo
+*.dump
+*.bak
+*.backup
+backups
+.backups
