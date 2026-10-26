@@ -10,6 +10,7 @@ import ApplicationDocuments from './ApplicationDocuments'
 import ClientAdditionalInfoForm from './ClientAdditionalInfoForm'
 import type { InfoApplication, InfoPayload } from './clientAdditionalInfo'
 import { contractQueryOptions, nextScheduledPayment, paymentDate } from './creditDocuments'
+import { indicativePayment, indicativeRate, indicativeRateLabel } from './indicativeCalculation'
 import './Dashboard.css'
 import './CreditCalculator.css'
 import './ApplicationPage.css'
@@ -51,7 +52,7 @@ type StatusEvent = {
 }
 
 type Company = CabinetCompany
-type Product = { code: string; name: string }
+type Product = { code: string; name: string; indicative_rate_min?: number | string | null }
 type DemoCode = { code: string; expires_at: string }
 type Data = {
   application: Application
@@ -90,13 +91,6 @@ const processingStatuses = new Set([
   'manual_review',
 ])
 const stepNames = ['Заявка', 'Рассмотрение', 'Решение', 'Подписание', 'Выдача']
-// Same demonstration rate as CreditCalculator. Not a saved quote or a bank tariff.
-const PRELIMINARY_DEMO_RATE = 23.5
-function preliminaryPayment(amount: number, months: number) {
-  if (amount <= 0 || months <= 0) return 0
-  const rate = PRELIMINARY_DEMO_RATE / 1200
-  return Math.round((amount * rate) / (1 - (1 + rate) ** -months))
-}
 const numberFormat = new Intl.NumberFormat('ru-RU', {
   maximumFractionDigits: 0,
 })
@@ -672,6 +666,12 @@ function ApplicationCard({
       : code === 'working_capital'
         ? 'Оборотный кредит'
         : 'Кредит')
+  const requestedRate = indicativeRate(
+    data?.products.find((product) => product.code === application?.product_code)?.indicative_rate_min,
+  )
+  const requestedPayment = application
+    ? indicativePayment(application.amount, application.term_months, requestedRate)
+    : null
   const stopped =
     application?.status === 'rejected' || application?.status === 'closed'
   const completed = application?.status === 'disbursed_demo'
@@ -1018,7 +1018,7 @@ const codeCountdown = [
                         <tr>
                           <th scope="row">Ставка</th>
                           <td>
-                            от {annualRate(PRELIMINARY_DEMO_RATE)}{' '}
+                            {indicativeRateLabel(requestedRate)}{' '}
                             <small className="request-demo-label">демо</small>
                           </td>
                           <td>{annualRate(proposal.rate)}</td>
@@ -1026,13 +1026,7 @@ const codeCountdown = [
                         <tr>
                           <th scope="row">Платёж в месяц</th>
                           <td>
-                            от{' '}
-                            {money(
-                              preliminaryPayment(
-                                application.amount,
-                                application.term_months,
-                              ),
-                            )}
+                            {requestedPayment === null ? '—' : `от ${money(requestedPayment)}`}
                           </td>
                           <td>{money(proposal.monthly_payment)}</td>
                         </tr>
