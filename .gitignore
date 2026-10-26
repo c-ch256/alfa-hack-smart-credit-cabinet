@@ -29,5 +29,12 @@ coverage/
 *.sqlite3
 *.db
 *.dump
+*.sql.gz
+backup*.sql
+dump*.sql
+*.bak
+*.backup
+backups/
+.backups/
 *.pgpass
 postgres-data/

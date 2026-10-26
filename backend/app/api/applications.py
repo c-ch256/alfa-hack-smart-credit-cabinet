@@ -9,6 +9,8 @@ from app.application_schemas import (
     ApplicationCreate,
     ApplicationPatch,
     ApplicationResponse,
+    ClientApplicationDetailResponse,
+    ClientProductResponse,
     CompanyResponse,
     OfferResponse,
     ProductResponse,
@@ -24,7 +26,9 @@ from app.application_service import (
 from app.contract_schemas import CompanyRequisites
 from app.deps import get_session, require_role
 from app.models import Application, Company, Offer, Product, StatusEvent, User
+from app.services.additional_info_history import active_info_request
 from app.services.contracts import _borrower
+from app.services.pricing import RISK_PREMIUM_PP, annual_rate
 from app.services.workflow import add_information_and_process, submit_and_process
 
 router = APIRouter(tags=['Клиентские заявки'])
@@ -51,11 +55,22 @@ async def company_requisites(
     return _borrower(own_company(session, company_id, user)) | {'demonstration': True}
 
 
-@router.get('/products', response_model=list[ProductResponse])
-async def list_products(_user: Client, session: Db) -> list[Product]:
-    return list(
-        session.scalars(select(Product).where(Product.is_active.is_(True)).order_by(Product.code))
-    )
+@router.get('/products', response_model=list[ClientProductResponse])
+async def list_products(
+    _user: Client, session: Db, request: Request
+) -> list[ClientProductResponse]:
+    minimum_band = min(RISK_PREMIUM_PP, key=RISK_PREMIUM_PP.get)
+    return [
+        ClientProductResponse(
+            **ProductResponse.model_validate(product).model_dump(),
+            indicative_rate_min=annual_rate(
+                request.app.state.settings.key_rate, product.margin_pp, minimum_band
+            ),
+        )
+        for product in session.scalars(
+            select(Product).where(Product.is_active.is_(True)).order_by(Product.code)
+        )
+    ]
 
 
 @router.post('/applications', response_model=ApplicationResponse, status_code=201)
@@ -96,9 +111,22 @@ async def list_applications(
     )
 
 
-@router.get('/applications/{application_id}', response_model=ApplicationResponse)
-async def get_application(application_id: ApplicationId, user: Client, session: Db) -> Application:
-    return own_application(session, application_id, user)
+@router.get('/applications/{application_id}', response_model=ClientApplicationDetailResponse)
+async def get_application(
+    application_id: ApplicationId, user: Client, session: Db
+) -> ClientApplicationDetailResponse:
+    application = own_application(session, application_id, user)
+    request_id, fields = (
+        active_info_request(session, application_id)
+        if application.status == 'needs_info'
+        else (None, None)
+    )
+    return ClientApplicationDetailResponse(
+        **ApplicationResponse.model_validate(application).model_dump(),
+        active_info_request={'request_event_id': request_id, 'fields': fields}
+        if request_id is not None and fields
+        else None,
+    )
 
 
 @router.patch('/applications/{application_id}', response_model=ApplicationResponse)

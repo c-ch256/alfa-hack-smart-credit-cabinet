@@ -72,10 +72,17 @@ def accept_offer(session: Session, offer_id: int, actor: User) -> Application:
     if check_data(fields, session.get(Product, offer.product_code)).status != 'ok':
         raise ApiError(422, 'MISSING_PRODUCT_DATA', 'Не хватает сведений для продукта')
     terms = build_contract(offer, application, on_date=datetime.now(UTC).date())
-    transition(session, application, 'accepted', actor, 'Клиент принял предложение')
+    transition(
+        session,
+        application,
+        'accepted',
+        actor,
+        'Клиент принял предложение',
+        audit_details={'offer_id': offer.id},
+    )
     _change_offer_status(session, offer, 'accepted')
     session.add(CreditContract(offer_id=offer.id, application_id=application.id, terms=terms))
-    audit(session, application, actor, 'offer.accept')
+    audit(session, application, actor, 'offer.accept', {'offer_id': offer.id})
     session.flush()
     return application
 
@@ -83,9 +90,16 @@ def accept_offer(session: Session, offer_id: int, actor: User) -> Application:
 def decline_offer(session: Session, offer_id: int, actor: User) -> Application:
     offer, application = _owned_offer(session, offer_id, actor)
     _current_proposal(session, offer, application)
-    transition(session, application, 'closed', actor, 'Клиент отклонил предложение')
+    transition(
+        session,
+        application,
+        'closed',
+        actor,
+        'Клиент отклонил предложение',
+        audit_details={'offer_id': offer.id},
+    )
     _change_offer_status(session, offer, 'declined')
-    audit(session, application, actor, 'offer.decline')
+    audit(session, application, actor, 'offer.decline', {'offer_id': offer.id})
     session.flush()
     return application
 

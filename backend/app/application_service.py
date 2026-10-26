@@ -45,7 +45,13 @@ TRANSITIONS: dict[tuple[str, str], str] = {
 }
 
 
-def audit(session: Session, application: Application, actor: User | None, action: str) -> None:
+def audit(
+    session: Session,
+    application: Application,
+    actor: User | None,
+    action: str,
+    details: dict | None = None,
+) -> None:
     session.add(
         AuditEvent(
             actor_user_id=actor.id if actor else None,
@@ -57,7 +63,7 @@ def audit(session: Session, application: Application, actor: User | None, action
             action=action,
             result='success',
             correlation_id=uuid4().hex,
-            details={'status': application.status},
+            details={'status': application.status, **(details or {})},
         )
     )
 
@@ -101,7 +107,13 @@ def validate_terms(session: Session, fields: dict) -> None:
 
 
 def transition(
-    session: Session, application: Application, to_status: str, actor: User | None, reason: str
+    session: Session,
+    application: Application,
+    to_status: str,
+    actor: User | None,
+    reason: str,
+    *,
+    audit_details: dict | None = None,
 ) -> Application:
     from_status = application.status
     actor_role = actor.role if actor else 'SYSTEM'
@@ -127,19 +139,29 @@ def transition(
         )
         or 0
     ) + 1
-    session.add(
-        StatusEvent(
-            application_id=application.id,
-            sequence=sequence,
-            from_status=from_status,
-            to_status=to_status,
-            actor_role=actor_role,
-            actor_user_id=actor.id if actor else None,
-            reason=reason,
-        )
+    event = StatusEvent(
+        application_id=application.id,
+        sequence=sequence,
+        from_status=from_status,
+        to_status=to_status,
+        actor_role=actor_role,
+        actor_user_id=actor.id if actor else None,
+        reason=reason,
     )
+    session.add(event)
     session.flush()
-    audit(session, application, actor, f'application.{to_status}')
+    historical_details = {**(audit_details or {}), 'status_event_id': event.id}
+    if to_status == 'closed':
+        historical_details['assigned_staff_user_id'] = application.assigned_staff_user_id
+    if to_status == 'needs_info' and application.info_request:
+        historical_details['info_request_text'] = application.info_request
+    if to_status == 'manual_review' and application.assigned_staff_user_id is not None:
+        recipient = session.get(User, application.assigned_staff_user_id)
+        historical_details['assigned_staff_user_id'] = application.assigned_staff_user_id
+        historical_details['assigned_staff_display_name'] = (
+            recipient.full_name if recipient else None
+        )
+    audit(session, application, actor, f'application.{to_status}', historical_details)
     return application
 
 

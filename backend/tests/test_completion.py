@@ -213,11 +213,16 @@ def test_invalid_and_expired_code(api: FastAPI) -> None:
                     f'/applications/{app_id}/sign-demo', headers=owner, json={'code': wrong}
                 )
                 assert response.status_code == (429 if attempt == 4 else 422)
-            assert (
-                await client.post(
-                    f'/applications/{app_id}/sign-demo', headers=owner, json={'code': code}
+                assert response.json()['code'] == (
+                    'CODE_ATTEMPTS_EXCEEDED' if attempt == 4 else 'INVALID_CODE'
                 )
-            ).status_code == 429
+                assert code not in response.text
+                assert 'hash' not in response.text
+            blocked = await client.post(
+                f'/applications/{app_id}/sign-demo', headers=owner, json={'code': code}
+            )
+            assert blocked.status_code == 429
+            assert blocked.json()['code'] == 'CODE_ATTEMPTS_EXCEEDED'
             assert (
                 await client.post(f'/applications/{app_id}/sign-demo/code', headers=owner)
             ).status_code == 429

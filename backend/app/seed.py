@@ -8,7 +8,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app.config import Settings
+from app.config import DEMO_BANK_NAME, Settings
 from app.db import create_db_engine
 from app.models import Company, Product, User
 from app.security import hash_password
@@ -166,12 +166,14 @@ def seed_demo_catalog(engine: Engine) -> None:
             if company is not None:
                 if company.owner_user_id != users[login]:
                     raise ValueError('demo company conflicts with expected owner')
+                if company.bank_name == 'Демо-Банк (вымышленный)':
+                    company.bank_name = DEMO_BANK_NAME
                 if company.registration_number is None:
                     company.registration_number = registration_number
                     company.legal_address = legal_address
                     company.settlement_account = settlement_account
                     company.bank_bik = '000000000'
-                    company.bank_name = 'Демо-Банк (вымышленный)'
+                    company.bank_name = DEMO_BANK_NAME
                     company.correspondent_account = '00000000000000000000'
                 continue
             session.add(
@@ -184,7 +186,7 @@ def seed_demo_catalog(engine: Engine) -> None:
                     legal_address=legal_address,
                     settlement_account=settlement_account,
                     bank_bik='000000000',
-                    bank_name='Демо-Банк (вымышленный)',
+                    bank_name=DEMO_BANK_NAME,
                     correspondent_account='00000000000000000000',
                     okved=okved,
                     industry=industry,

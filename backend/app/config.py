@@ -5,6 +5,8 @@ from typing import Literal
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+DEMO_BANK_NAME = 'Альфа-Банк'
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix='APP_', extra='forbid', hide_input_in_errors=True)

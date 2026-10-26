@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.application_service import own_application
+from app.config import DEMO_BANK_NAME
 from app.errors import ApiError
 from app.models import Application, Company, CreditContract, Offer, StatusEvent, User
 from app.services.pricing import payment_schedule
@@ -15,7 +16,7 @@ from app.services.staff import own_staff_application
 
 NOTICE = 'ДЕМОНСТРАЦИОННЫЙ ДОГОВОР. НЕ ЯВЛЯЕТСЯ ЮРИДИЧЕСКИ ЗНАЧИМЫМ ДОКУМЕНТОМ'
 BANK = {
-    'name': 'Демо-Банк (вымышленный кредитор)',
+    'name': DEMO_BANK_NAME,
     'inn': '0000000000',
     'ogrn': '0000000000000',
     'settlement_account': '00000000000000000000',

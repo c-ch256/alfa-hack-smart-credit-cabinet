@@ -47,7 +47,14 @@ async def create_demo_sign_code(
     return DemoCodeResponse(code=code, expires_at=expires_at)
 
 
-@router.post('/applications/{application_id}/sign-demo', response_model=ApplicationResponse)
+@router.post(
+    '/applications/{application_id}/sign-demo',
+    response_model=ApplicationResponse,
+    responses={
+        422: {'description': 'Неверный код: INVALID_CODE; истёкший код: CODE_EXPIRED'},
+        429: {'description': 'Исчерпаны попытки: CODE_ATTEMPTS_EXCEEDED'},
+    },
+)
 async def complete_demo_signing(
     application_id: ApplicationId,
     payload: DemoSignInput,

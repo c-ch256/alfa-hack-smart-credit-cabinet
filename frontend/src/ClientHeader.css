@@ -1,0 +1,390 @@
+.client-header {
+  position: relative;
+  z-index: 30;
+  overflow: visible;
+}
+.client-header .cabinet-header-inner {
+  overflow: visible;
+}
+.client-header .client-brand {
+  color: inherit;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+.client-header .cabinet-nav-item {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+}
+.client-header-controls {
+  position: relative;
+}
+.client-notification-anchor,
+.client-profile-anchor {
+  position: relative;
+}
+.client-header .client-bell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.client-header .client-bell > svg {
+  width: 22px;
+  height: 22px;
+}
+.client-header .client-unread-indicator {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 7px;
+  height: 7px;
+  border: 2px solid #101014;
+  border-radius: 50%;
+  background: #ef3124;
+  box-sizing: content-box;
+}
+.client-header .client-profile-trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.client-profile-name {
+  max-width: 230px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.client-header .client-profile-trigger > svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  transition: transform 150ms;
+}
+.client-header .client-profile-trigger[aria-expanded='true'] > svg {
+  transform: rotate(180deg);
+}
+.client-popover {
+  box-sizing: border-box;
+  position: absolute;
+  top: calc(100% + 17px);
+  z-index: 50;
+  border: 1px solid #e7e8eb;
+  border-radius: 14px;
+  background: #fff;
+  color: #0b1f35;
+  box-shadow: 0 10px 32px rgb(11 31 53 / 12%);
+  text-align: left;
+  font-family: inherit;
+  line-height: 1.5;
+}
+.client-notifications {
+  width: 420px;
+  right: -150px;
+  max-width: calc(100vw - 40px);
+}
+.client-popover-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 20px 20px 12px;
+}
+.client-popover-heading h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+.client-read-all {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #6d7986;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.client-read-all:hover:not(:disabled) {
+  color: #0b1f35;
+  text-decoration: underline;
+}
+.client-read-all:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.client-notices-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 20px;
+  max-height: min(390px, calc(100dvh - 240px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.client-notices-list li + li {
+  border-top: 1px solid #e7e8eb;
+}
+.client-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 0;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 4px;
+}
+.client-notice:hover .client-notice-copy strong {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.client-notice-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #f3f4f5;
+}
+.client-notice-copy {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+  overflow-wrap: anywhere;
+}
+.client-notice-copy strong {
+  color: #0b1f35;
+  font-size: 13px;
+  font-weight: 600;
+}
+.client-notice-copy > span {
+  color: #6d7986;
+  font-size: 12px;
+}
+.client-notice-copy time {
+  color: #7b8695;
+  font-size: 11px;
+}
+.client-notice-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: #ef3124;
+}
+.client-popover-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px;
+  border-top: 1px solid #e7e8eb;
+  color: #0b1f35;
+  font-size: 13px;
+  text-decoration: none;
+}
+.client-popover-footer:hover {
+  background: #f7f8f9;
+  border-radius: 0 0 14px 14px;
+}
+.client-panel-message {
+  margin: 0;
+  padding: 22px 20px;
+  color: #6d7986;
+  font-size: 13px;
+}
+.client-panel-message p {
+  margin: 0 0 10px;
+}
+.client-profile-panel {
+  right: 0;
+  width: 300px;
+  max-width: calc(100vw - 40px);
+  padding: 0 16px;
+}
+.client-profile-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 18px 4px;
+  border-bottom: 1px solid #e7e8eb;
+  overflow-wrap: anywhere;
+}
+.client-profile-identity strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+.client-profile-identity > span {
+  color: #6d7986;
+  font-size: 12px;
+}
+.client-profile-panel nav {
+  padding: 8px 0;
+}
+.client-profile-action {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 12px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #0b1f35;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  text-decoration: none;
+  text-align: left;
+  cursor: pointer;
+}
+.client-profile-action svg {
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+}
+.client-profile-action:hover {
+  background: #f3f4f5;
+}
+.client-profile-panel .client-logout {
+  margin: 0 0 8px;
+  padding-top: 14px;
+  border-top: 1px solid #e7e8eb;
+  border-radius: 0;
+  color: #d91d0b;
+}
+.client-company-dialog {
+  box-sizing: border-box;
+  width: min(620px, calc(100vw - 48px));
+  max-height: calc(100dvh - 64px);
+  margin: auto;
+  padding: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid #e7e8eb;
+  border-radius: 18px;
+  background: #fff;
+  color: #0b1f35;
+  font-family: inherit;
+}
+.client-company-dialog::backdrop {
+  background: rgb(11 31 53 / 38%);
+}
+.client-company-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 24px 26px 18px;
+}
+.client-company-heading h2 {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.3;
+  font-weight: 600;
+}
+.client-company-heading p {
+  margin: 7px 0 0;
+  color: #6d7986;
+  font-size: 13px;
+}
+.client-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #6d7986;
+  cursor: pointer;
+}
+.client-icon-button:hover {
+  color: #0b1f35;
+  background: #f3f4f5;
+}
+.client-company-details {
+  margin: 0;
+  padding: 0 26px;
+}
+.client-company-details > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 20px;
+  padding: 14px 0;
+  border-bottom: 1px solid #e7e8eb;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.client-company-details dt {
+  color: #6d7986;
+}
+.client-company-details dd {
+  margin: 0;
+  font-weight: 500;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.client-company-empty {
+  padding: 0 26px;
+  font-size: 13px;
+  color: #6d7986;
+}
+.client-company-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 20px 26px 24px;
+}
+.client-company-requisites { padding: 22px 26px 0; font-size: 13px; line-height: 1.6; }
+.client-company-requisites h3 { margin: 0 0 8px; font-size: 16px; font-weight: 600; }
+.client-requisites-notice { margin: 0 0 8px; color: #6d7986; font-size: 12px; }
+.client-company-requisites .client-company-details { padding: 0; }
+.client-requisites-error { color: #b5261c; }
+.client-requisites-error button { padding: 6px 14px; border: 1px solid #c9cfd6; border-radius: 8px; background: #fff; color: #0b1f35; font: inherit; cursor: pointer; }
+.client-company-footer button {
+  min-height: 42px;
+  padding: 10px 24px;
+  border: 1px solid #c9cfd6;
+  border-radius: 9px;
+  background: #fff;
+  color: #0b1f35;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.client-company-footer button:hover {
+  background: #f3f4f5;
+}
+.client-header :is(a, button):focus-visible,
+.client-company-dialog button:focus-visible {
+  outline: 2px solid #6d7986;
+  outline-offset: 3px;
+}
+.dashboard .dashboard-application-link {
+  color: inherit;
+  text-decoration: none;
+}
+.dashboard .dashboard-application-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.dashboard .dashboard-application-link:focus-visible {
+  outline: 2px solid #0b1f35;
+  outline-offset: 3px;
+}
+@media (max-width: 1200px) {
+  .client-profile-name {
+    max-width: 175px;
+  }
+  .client-notifications {
+    right: -120px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .client-header .client-profile-trigger > svg {
+    transition: none;
+  }
+}

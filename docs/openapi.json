@@ -209,7 +209,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/ProductResponse"
+                    "$ref": "#/components/schemas/ClientProductResponse"
                   },
                   "type": "array",
                   "title": "Response List Products Products Get"
@@ -380,7 +380,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApplicationResponse"
+                  "$ref": "#/components/schemas/ClientApplicationDetailResponse"
                 }
               }
             }
@@ -936,14 +936,10 @@
             }
           },
           "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
+            "description": "Неверный код: INVALID_CODE; истёкший код: CODE_EXPIRED"
+          },
+          "429": {
+            "description": "Исчерпаны попытки: CODE_ATTEMPTS_EXCEEDED"
           }
         }
       }
@@ -1088,6 +1084,144 @@
         }
       }
     },
+    "/staff/notifications": {
+      "get": {
+        "tags": [
+          "Сотрудник"
+        ],
+        "summary": "List Staff Notifications",
+        "operationId": "list_staff_notifications_staff_notifications_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000000,
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StaffNotification"
+                  },
+                  "title": "Response List Staff Notifications Staff Notifications Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/staff/products": {
+      "get": {
+        "tags": [
+          "Сотрудник"
+        ],
+        "summary": "Staff Products",
+        "operationId": "staff_products_staff_products_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffProductCatalog"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/staff/loan-preview": {
+      "post": {
+        "tags": [
+          "Сотрудник"
+        ],
+        "summary": "Staff Loan Preview",
+        "operationId": "staff_loan_preview_staff_loan_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoanPreviewInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoanPreviewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/staff/applications": {
       "get": {
         "tags": [
@@ -1150,7 +1284,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/ApplicationResponse"
+                    "$ref": "#/components/schemas/StaffApplicationListResponse"
                   },
                   "title": "Response List Staff Applications Staff Applications Get"
                 }
@@ -1219,52 +1353,6 @@
         }
       }
     },
-    "/staff/loan-preview": {
-      "post": {
-        "tags": [
-          "Сотрудник"
-        ],
-        "summary": "Staff Loan Preview",
-        "operationId": "staff_loan_preview_staff_loan_preview_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LoanPreviewInput"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LoanPreviewResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      }
-    },
     "/staff/applications/{application_id}/comments": {
       "get": {
         "tags": [
@@ -1287,6 +1375,30 @@
               "maximum": 2147483647,
               "exclusiveMinimum": 0,
               "title": "Application Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000000,
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
             }
           }
         ],
@@ -1580,12 +1692,51 @@
   },
   "components": {
     "schemas": {
+      "ActiveInfoRequest": {
+        "properties": {
+          "request_event_id": {
+            "type": "integer",
+            "title": "Request Event Id"
+          },
+          "fields": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "purpose_details",
+                "investment_object",
+                "collateral_type",
+                "collateral_value"
+              ]
+            },
+            "type": "array",
+            "title": "Fields"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_event_id",
+          "fields"
+        ],
+        "title": "ActiveInfoRequest"
+      },
       "AdditionalInfo": {
         "properties": {
           "version": {
             "type": "integer",
             "minimum": 1.0,
             "title": "Version"
+          },
+          "request_event_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Event Id"
           },
           "message": {
             "anyOf": [
@@ -2122,6 +2273,213 @@
         ],
         "title": "BorrowerDetails"
       },
+      "ClientApplicationDetailResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "number": {
+            "type": "string",
+            "title": "Number"
+          },
+          "company_id": {
+            "type": "integer",
+            "title": "Company Id"
+          },
+          "product_code": {
+            "type": "string",
+            "title": "Product Code"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "amount": {
+            "type": "integer",
+            "title": "Amount"
+          },
+          "term_months": {
+            "type": "integer",
+            "title": "Term Months"
+          },
+          "purpose": {
+            "type": "string",
+            "title": "Purpose"
+          },
+          "purpose_details": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Purpose Details"
+          },
+          "investment_object": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Investment Object"
+          },
+          "collateral_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collateral Type"
+          },
+          "collateral_value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collateral Value"
+          },
+          "info_request": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Info Request"
+          },
+          "info_response": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Info Response"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "active_info_request": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActiveInfoRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status_label": {
+            "type": "string",
+            "title": "Status Label",
+            "readOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "number",
+          "company_id",
+          "product_code",
+          "status",
+          "amount",
+          "term_months",
+          "purpose",
+          "purpose_details",
+          "investment_object",
+          "collateral_type",
+          "collateral_value",
+          "info_request",
+          "info_response",
+          "version",
+          "created_at",
+          "updated_at",
+          "active_info_request",
+          "status_label"
+        ],
+        "title": "ClientApplicationDetailResponse"
+      },
+      "ClientProductResponse": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "terms_version": {
+            "type": "string",
+            "title": "Terms Version"
+          },
+          "min_amount": {
+            "type": "integer",
+            "title": "Min Amount"
+          },
+          "max_amount": {
+            "type": "integer",
+            "title": "Max Amount"
+          },
+          "min_term_months": {
+            "type": "integer",
+            "title": "Min Term Months"
+          },
+          "max_term_months": {
+            "type": "integer",
+            "title": "Max Term Months"
+          },
+          "margin_pp": {
+            "type": "string",
+            "title": "Margin Pp"
+          },
+          "indicative_rate_min": {
+            "type": "string",
+            "title": "Indicative Rate Min"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "name",
+          "terms_version",
+          "min_amount",
+          "max_amount",
+          "min_term_months",
+          "max_term_months",
+          "margin_pp",
+          "indicative_rate_min"
+        ],
+        "title": "ClientProductResponse"
+      },
       "CompanyRequisites": {
         "properties": {
           "legal_form": {
@@ -2553,50 +2911,33 @@
             "exclusiveMinimum": 0.0,
             "title": "Application Id"
           },
+          "product_code": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 1,
+            "pattern": "^[a-z_]+$",
+            "title": "Product Code"
+          },
           "amount": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "exclusiveMinimum": 0.0
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "integer",
+            "maximum": 9.223372036854776e+18,
+            "exclusiveMinimum": 0.0,
             "title": "Amount"
           },
           "term_months": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "exclusiveMinimum": 0.0
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "integer",
+            "maximum": 1200.0,
+            "exclusiveMinimum": 0.0,
             "title": "Term Months"
-          },
-          "product_code": {
-            "anyOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "working_capital",
-                  "investment"
-                ]
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Product Code"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "application_id"
+          "application_id",
+          "product_code",
+          "amount",
+          "term_months"
         ],
         "title": "LoanPreviewInput"
       },
@@ -2614,9 +2955,8 @@
             "type": "integer",
             "title": "Snapshot Version"
           },
-          "product_code": {
-            "type": "string",
-            "title": "Product Code"
+          "product": {
+            "$ref": "#/components/schemas/ProductResponse"
           },
           "amount": {
             "type": "integer",
@@ -2626,21 +2966,55 @@
             "type": "integer",
             "title": "Term Months"
           },
+          "risk_band": {
+            "type": "string",
+            "enum": [
+              "A",
+              "B",
+              "C",
+              "D"
+            ],
+            "title": "Risk Band"
+          },
+          "key_rate": {
+            "type": "string",
+            "title": "Key Rate"
+          },
+          "risk_premium_pp": {
+            "type": "string",
+            "title": "Risk Premium Pp"
+          },
           "pd": {
             "type": "string",
             "title": "Pd"
-          },
-          "risk_band": {
-            "type": "string",
-            "title": "Risk Band"
           },
           "model_version": {
             "type": "string",
             "title": "Model Version"
           },
-          "rate": {
+          "score_source": {
             "type": "string",
-            "title": "Rate"
+            "enum": [
+              "mock",
+              "model"
+            ],
+            "title": "Score Source"
+          },
+          "is_test_result": {
+            "type": "boolean",
+            "title": "Is Test Result"
+          },
+          "scoring_reasons": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Scoring Reasons"
+          },
+          "annual_rate": {
+            "type": "string",
+            "title": "Annual Rate"
           },
           "monthly_payment": {
             "type": "integer",
@@ -2649,6 +3023,29 @@
           "dscr": {
             "type": "string",
             "title": "Dscr"
+          },
+          "total_payments": {
+            "type": "integer",
+            "title": "Total Payments"
+          },
+          "overpayment": {
+            "type": "integer",
+            "title": "Overpayment"
+          },
+          "applied_constraints": {
+            "$ref": "#/components/schemas/ProductLimits"
+          },
+          "indicative": {
+            "type": "boolean",
+            "title": "Indicative"
+          },
+          "demonstration": {
+            "type": "boolean",
+            "title": "Demonstration"
+          },
+          "explanation": {
+            "type": "string",
+            "title": "Explanation"
           }
         },
         "type": "object",
@@ -2656,15 +3053,26 @@
           "application_id",
           "snapshot_id",
           "snapshot_version",
-          "product_code",
+          "product",
           "amount",
           "term_months",
-          "pd",
           "risk_band",
+          "key_rate",
+          "risk_premium_pp",
+          "pd",
           "model_version",
-          "rate",
+          "score_source",
+          "is_test_result",
+          "scoring_reasons",
+          "annual_rate",
           "monthly_payment",
-          "dscr"
+          "dscr",
+          "total_payments",
+          "overpayment",
+          "applied_constraints",
+          "indicative",
+          "demonstration",
+          "explanation"
         ],
         "title": "LoanPreviewResponse"
       },
@@ -2855,6 +3263,34 @@
         ],
         "title": "PaymentRow"
       },
+      "ProductLimits": {
+        "properties": {
+          "min_amount": {
+            "type": "integer",
+            "title": "Min Amount"
+          },
+          "max_amount": {
+            "type": "integer",
+            "title": "Max Amount"
+          },
+          "min_term_months": {
+            "type": "integer",
+            "title": "Min Term Months"
+          },
+          "max_term_months": {
+            "type": "integer",
+            "title": "Max Term Months"
+          }
+        },
+        "type": "object",
+        "required": [
+          "min_amount",
+          "max_amount",
+          "min_term_months",
+          "max_term_months"
+        ],
+        "title": "ProductLimits"
+      },
       "ProductResponse": {
         "properties": {
           "code": {
@@ -2905,17 +3341,33 @@
       },
       "RequestInfoInput": {
         "properties": {
-          "message": {
+          "fields": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "purpose_details",
+                "investment_object",
+                "collateral_type",
+                "collateral_value"
+              ]
+            },
+            "type": "array",
+            "maxItems": 4,
+            "minItems": 1,
+            "title": "Fields"
+          },
+          "comment": {
             "type": "string",
             "maxLength": 2000,
             "minLength": 1,
-            "title": "Message"
+            "title": "Comment"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "message"
+          "fields",
+          "comment"
         ],
         "title": "RequestInfoInput"
       },
@@ -2978,10 +3430,44 @@
       "StaffApplicationDetail": {
         "properties": {
           "application": {
-            "$ref": "#/components/schemas/ApplicationResponse"
+            "$ref": "#/components/schemas/StaffApplicationResponse"
+          },
+          "initial_request": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StaffInitialRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "allowed_actions": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "approve",
+                "counter",
+                "reject",
+                "request_info"
+              ]
+            },
+            "type": "array",
+            "title": "Allowed Actions"
+          },
+          "additional_info_responses": {
+            "items": {
+              "$ref": "#/components/schemas/StaffInfoResponse"
+            },
+            "type": "array",
+            "title": "Additional Info Responses"
           },
           "company": {
             "$ref": "#/components/schemas/CompanyResponse"
+          },
+          "snapshot_id": {
+            "type": "integer",
+            "title": "Snapshot Id"
           },
           "snapshot_version": {
             "type": "integer",
@@ -3009,6 +3495,13 @@
               }
             ]
           },
+          "dscr": {
+            "items": {
+              "$ref": "#/components/schemas/StaffDscrResponse"
+            },
+            "type": "array",
+            "title": "Dscr"
+          },
           "offers": {
             "items": {
               "$ref": "#/components/schemas/OfferResponse"
@@ -3018,31 +3511,386 @@
           },
           "history": {
             "items": {
-              "$ref": "#/components/schemas/StatusEventResponse"
+              "$ref": "#/components/schemas/StaffStatusEventResponse"
             },
             "type": "array",
             "title": "History"
           },
-          "internal_comments": {
+          "decisions": {
+            "items": {
+              "$ref": "#/components/schemas/StaffDecisionResponse"
+            },
+            "type": "array",
+            "title": "Decisions"
+          },
+          "comments": {
             "items": {
               "$ref": "#/components/schemas/StaffCommentResponse"
             },
             "type": "array",
-            "title": "Internal Comments"
+            "title": "Comments"
           }
         },
         "type": "object",
         "required": [
           "application",
+          "initial_request",
+          "allowed_actions",
+          "additional_info_responses",
           "company",
+          "snapshot_id",
           "snapshot_version",
           "company_snapshot",
           "checks",
           "score",
+          "dscr",
           "offers",
-          "history"
+          "history",
+          "decisions",
+          "comments"
         ],
         "title": "StaffApplicationDetail"
+      },
+      "StaffApplicationListResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "number": {
+            "type": "string",
+            "title": "Number"
+          },
+          "company_id": {
+            "type": "integer",
+            "title": "Company Id"
+          },
+          "product_code": {
+            "type": "string",
+            "title": "Product Code"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "amount": {
+            "type": "integer",
+            "title": "Amount"
+          },
+          "term_months": {
+            "type": "integer",
+            "title": "Term Months"
+          },
+          "purpose": {
+            "type": "string",
+            "title": "Purpose"
+          },
+          "purpose_details": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Purpose Details"
+          },
+          "investment_object": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Investment Object"
+          },
+          "collateral_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collateral Type"
+          },
+          "collateral_value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collateral Value"
+          },
+          "info_request": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Info Request"
+          },
+          "info_response": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Info Response"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "company": {
+            "$ref": "#/components/schemas/StaffListCompany"
+          },
+          "risk_band": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "A",
+                  "B",
+                  "C",
+                  "D"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Risk Band"
+          },
+          "received_additional_info": {
+            "type": "boolean",
+            "title": "Received Additional Info"
+          },
+          "work_categories": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "manual_review",
+                "needs_info",
+                "waiting_offer",
+                "staff_approved",
+                "staff_rejected",
+                "staff_offer_accepted"
+              ]
+            },
+            "type": "array",
+            "title": "Work Categories"
+          },
+          "status_label": {
+            "type": "string",
+            "title": "Status Label",
+            "readOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "number",
+          "company_id",
+          "product_code",
+          "status",
+          "amount",
+          "term_months",
+          "purpose",
+          "purpose_details",
+          "investment_object",
+          "collateral_type",
+          "collateral_value",
+          "info_request",
+          "info_response",
+          "version",
+          "created_at",
+          "updated_at",
+          "company",
+          "risk_band",
+          "received_additional_info",
+          "work_categories",
+          "status_label"
+        ],
+        "title": "StaffApplicationListResponse"
+      },
+      "StaffApplicationResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "number": {
+            "type": "string",
+            "title": "Number"
+          },
+          "company_id": {
+            "type": "integer",
+            "title": "Company Id"
+          },
+          "product_code": {
+            "type": "string",
+            "title": "Product Code"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "amount": {
+            "type": "integer",
+            "title": "Amount"
+          },
+          "term_months": {
+            "type": "integer",
+            "title": "Term Months"
+          },
+          "purpose": {
+            "type": "string",
+            "title": "Purpose"
+          },
+          "purpose_details": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Purpose Details"
+          },
+          "investment_object": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Investment Object"
+          },
+          "collateral_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collateral Type"
+          },
+          "collateral_value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collateral Value"
+          },
+          "info_request": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Info Request"
+          },
+          "info_response": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Info Response"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "assigned_staff_user_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Staff User Id"
+          },
+          "status_label": {
+            "type": "string",
+            "title": "Status Label",
+            "readOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "number",
+          "company_id",
+          "product_code",
+          "status",
+          "amount",
+          "term_months",
+          "purpose",
+          "purpose_details",
+          "investment_object",
+          "collateral_type",
+          "collateral_value",
+          "info_request",
+          "info_response",
+          "version",
+          "created_at",
+          "updated_at",
+          "assigned_staff_user_id",
+          "status_label"
+        ],
+        "title": "StaffApplicationResponse"
       },
       "StaffAuditResponse": {
         "properties": {
@@ -3104,6 +3952,187 @@
             "type": "string",
             "format": "date-time",
             "title": "Created At"
+          },
+          "decision_source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "SYSTEM",
+                  "STAFF"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Source"
+          },
+          "internal_comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Internal Comment"
+          },
+          "actor_display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor Display Name"
+          },
+          "company_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Name"
+          },
+          "status_at_event": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status At Event"
+          },
+          "decision_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Id"
+          },
+          "status_event_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status Event Id"
+          },
+          "comment_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment Id"
+          },
+          "comment_author_user_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment Author User Id"
+          },
+          "comment_created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment Created At"
+          },
+          "offer_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offer Id"
+          },
+          "offer_terms": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offer Terms"
+          },
+          "additional_info": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StaffInfoResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "info_request_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Info Request Text"
+          },
+          "assigned_staff_user_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Staff User Id"
+          },
+          "assigned_staff_display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Staff Display Name"
           }
         },
         "type": "object",
@@ -3198,6 +4227,28 @@
             "type": "string",
             "format": "date-time",
             "title": "Created At"
+          },
+          "audit_event_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audit Event Id"
+          },
+          "status_event_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status Event Id"
           }
         },
         "type": "object",
@@ -3210,11 +4261,573 @@
         ],
         "title": "StaffCommentResponse"
       },
+      "StaffDecisionResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "snapshot_id": {
+            "type": "integer",
+            "title": "Snapshot Id"
+          },
+          "score_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Id"
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "approve",
+              "counter",
+              "reject"
+            ],
+            "title": "Decision"
+          },
+          "created_by": {
+            "type": "string",
+            "enum": [
+              "SYSTEM",
+              "STAFF"
+            ],
+            "title": "Created By"
+          },
+          "created_by_user_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By User Id"
+          },
+          "rule_version": {
+            "type": "string",
+            "title": "Rule Version"
+          },
+          "rationale": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Rationale"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "internal_comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Internal Comment"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "snapshot_id",
+          "score_id",
+          "decision",
+          "created_by",
+          "created_by_user_id",
+          "rule_version",
+          "rationale",
+          "created_at"
+        ],
+        "title": "StaffDecisionResponse"
+      },
+      "StaffDscrResponse": {
+        "properties": {
+          "snapshot_id": {
+            "type": "integer",
+            "title": "Snapshot Id"
+          },
+          "score_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Id"
+          },
+          "key_rate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key Rate"
+          },
+          "monthly_payment": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monthly Payment"
+          },
+          "calculation_basis": {
+            "type": "string",
+            "enum": [
+              "current_formula",
+              "saved_offer"
+            ],
+            "title": "Calculation Basis"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "original_application",
+              "offer"
+            ],
+            "title": "Scope"
+          },
+          "offer_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offer Id"
+          },
+          "snapshot_version": {
+            "type": "integer",
+            "title": "Snapshot Version"
+          },
+          "product_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Code"
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount"
+          },
+          "term_months": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Term Months"
+          },
+          "rate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rate"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "explanation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explanation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "snapshot_id",
+          "monthly_payment",
+          "calculation_basis",
+          "scope",
+          "offer_id",
+          "snapshot_version",
+          "product_code",
+          "amount",
+          "term_months",
+          "rate",
+          "value",
+          "explanation"
+        ],
+        "title": "StaffDscrResponse"
+      },
+      "StaffInfoChange": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "enum": [
+              "purpose_details",
+              "investment_object",
+              "collateral_type",
+              "collateral_value",
+              "message"
+            ],
+            "title": "Field"
+          },
+          "before": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before"
+          },
+          "after": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After"
+          }
+        },
+        "type": "object",
+        "required": [
+          "field",
+          "before",
+          "after"
+        ],
+        "title": "StaffInfoChange"
+      },
+      "StaffInfoResponse": {
+        "properties": {
+          "request_event_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Event Id"
+          },
+          "response_event_id": {
+            "type": "integer",
+            "title": "Response Event Id"
+          },
+          "answered_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Answered At"
+          },
+          "requested_fields": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "purpose_details",
+                    "investment_object",
+                    "collateral_type",
+                    "collateral_value"
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested Fields"
+          },
+          "changes": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/StaffInfoChange"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Changes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_event_id",
+          "response_event_id",
+          "answered_at",
+          "requested_fields",
+          "changes"
+        ],
+        "title": "StaffInfoResponse"
+      },
+      "StaffInitialRequest": {
+        "properties": {
+          "snapshot_id": {
+            "type": "integer",
+            "title": "Snapshot Id"
+          },
+          "snapshot_version": {
+            "type": "integer",
+            "title": "Snapshot Version"
+          },
+          "submitted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Submitted At"
+          },
+          "product_code": {
+            "type": "string",
+            "title": "Product Code"
+          },
+          "amount": {
+            "type": "integer",
+            "title": "Amount"
+          },
+          "term_months": {
+            "type": "integer",
+            "title": "Term Months"
+          },
+          "purpose": {
+            "type": "string",
+            "title": "Purpose"
+          },
+          "purpose_details": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Purpose Details"
+          },
+          "investment_object": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Investment Object"
+          },
+          "collateral_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collateral Type"
+          },
+          "collateral_value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collateral Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "snapshot_id",
+          "snapshot_version",
+          "submitted_at",
+          "product_code",
+          "amount",
+          "term_months",
+          "purpose",
+          "purpose_details",
+          "investment_object",
+          "collateral_type",
+          "collateral_value"
+        ],
+        "title": "StaffInitialRequest"
+      },
+      "StaffListCompany": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "inn": {
+            "type": "string",
+            "title": "Inn"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "inn"
+        ],
+        "title": "StaffListCompany"
+      },
+      "StaffNotification": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "application_id": {
+            "type": "integer",
+            "title": "Application Id"
+          },
+          "application_number": {
+            "type": "string",
+            "title": "Application Number"
+          },
+          "company_name": {
+            "type": "string",
+            "title": "Company Name"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "assigned",
+              "additional_info",
+              "offer_accepted",
+              "offer_declined",
+              "withdrawn"
+            ],
+            "title": "Kind"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "application_id",
+          "application_number",
+          "company_name",
+          "kind",
+          "created_at"
+        ],
+        "title": "StaffNotification"
+      },
+      "StaffProductCatalog": {
+        "properties": {
+          "products": {
+            "items": {
+              "$ref": "#/components/schemas/ProductResponse"
+            },
+            "type": "array",
+            "title": "Products"
+          },
+          "key_rate": {
+            "type": "string",
+            "title": "Key Rate"
+          },
+          "risk_premium_pp": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Risk Premium Pp"
+          },
+          "rate_formula": {
+            "type": "string",
+            "const": "key_rate + margin_pp + risk_premium_pp",
+            "title": "Rate Formula"
+          },
+          "demonstration": {
+            "type": "boolean",
+            "title": "Demonstration"
+          }
+        },
+        "type": "object",
+        "required": [
+          "products",
+          "key_rate",
+          "risk_premium_pp",
+          "rate_formula",
+          "demonstration"
+        ],
+        "title": "StaffProductCatalog"
+      },
       "StaffScoreResponse": {
         "properties": {
           "id": {
             "type": "integer",
             "title": "Id"
+          },
+          "snapshot_id": {
+            "type": "integer",
+            "title": "Snapshot Id"
           },
           "source": {
             "type": "string",
@@ -3306,43 +4919,6 @@
             ],
             "title": "Term Months"
           },
-          "snapshot_id": {
-            "type": "integer",
-            "title": "Snapshot Id"
-          },
-          "rate": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Rate"
-          },
-          "monthly_payment": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Monthly Payment"
-          },
-          "dscr": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Dscr"
-          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -3352,6 +4928,7 @@
         "type": "object",
         "required": [
           "id",
+          "snapshot_id",
           "source",
           "result_status",
           "is_test_result",
@@ -3363,13 +4940,86 @@
           "product_code",
           "amount",
           "term_months",
-          "snapshot_id",
-          "rate",
-          "monthly_payment",
-          "dscr",
           "created_at"
         ],
         "title": "StaffScoreResponse"
+      },
+      "StaffStatusEventResponse": {
+        "properties": {
+          "sequence": {
+            "type": "integer",
+            "title": "Sequence"
+          },
+          "from_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Status"
+          },
+          "to_status": {
+            "type": "string",
+            "title": "To Status"
+          },
+          "actor_role": {
+            "type": "string",
+            "title": "Actor Role"
+          },
+          "actor_user_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor User Id"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "actor_display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor Display Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sequence",
+          "from_status",
+          "to_status",
+          "actor_role",
+          "actor_user_id",
+          "reason",
+          "created_at",
+          "actor_display_name"
+        ],
+        "title": "StaffStatusEventResponse"
       },
       "StatusEventResponse": {
         "properties": {

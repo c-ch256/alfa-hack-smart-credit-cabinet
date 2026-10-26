@@ -1,0 +1,56 @@
+.loan-draft-cancel-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+.loan-draft-cancel-link {
+  padding: 6px 0;
+  border: 0;
+  background: transparent;
+  color: #b5261c;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.loan-draft-cancel-link:hover:not(:disabled) {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.loan-draft-cancel-link:disabled {
+  color: #8b949e;
+  cursor: default;
+}
+.loan-draft-cancel-link:focus-visible {
+  outline: 2px solid #0b1f35;
+  outline-offset: 4px;
+  border-radius: 3px;
+}
+.loan-cancel-dialog {
+  box-sizing: border-box;
+  width: min(480px, calc(100vw - 48px));
+  max-height: calc(100dvh - 48px);
+  margin: auto;
+  padding: 28px;
+  border: 0;
+  border-radius: 18px;
+  background: #fff;
+  color: #0b1f35;
+  font: inherit;
+  overflow-y: auto;
+}
+.loan-cancel-dialog::backdrop { background: rgb(11 31 53 / 36%); }
+.loan-cancel-dialog h2 { margin: 0 20px 12px 0; font-size: 22px; line-height: 1.35; }
+.loan-cancel-dialog > p { margin: 0 0 20px; color: #6d7986; font-size: 14px; line-height: 1.6; }
+.loan-cancel-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.loan-cancel-actions > button { width: 100%; min-width: 0; }
+.loan-cancel-dialog .loan-cancel-return { border: 1px solid #8793a5; background: #fff; color: #0b1f35; }
+.loan-cancel-dialog .loan-cancel-return:hover:not(:disabled) { background: #f7f8f9; }
+.loan-cancel-close {
+  position: absolute; top: 12px; right: 12px; display: grid; place-items: center;
+  width: 28px; height: 28px; padding: 0; border: 0; border-radius: 6px;
+  background: transparent; color: #7b8695; cursor: pointer;
+}
+.loan-cancel-close svg { width: 19px; height: 19px; }
+.loan-cancel-close:focus-visible { outline: 2px solid #0b1f35; outline-offset: 4px; }
+.loan-cancel-close:disabled { cursor: default; opacity: .5; }
+.loan-cancel-dialog .loan-cancel-error { color: #b5261c; }
