@@ -73,7 +73,11 @@ def accept_offer(session: Session, offer_id: int, actor: User) -> Application:
         raise ApiError(422, 'MISSING_PRODUCT_DATA', 'Не хватает сведений для продукта')
     terms = build_contract(offer, application, on_date=datetime.now(UTC).date())
     transition(
-        session, application, 'accepted', actor, 'Клиент принял предложение',
+        session,
+        application,
+        'accepted',
+        actor,
+        'Клиент принял предложение',
         audit_details={'offer_id': offer.id},
     )
     _change_offer_status(session, offer, 'accepted')
@@ -87,7 +91,11 @@ def decline_offer(session: Session, offer_id: int, actor: User) -> Application:
     offer, application = _owned_offer(session, offer_id, actor)
     _current_proposal(session, offer, application)
     transition(
-        session, application, 'closed', actor, 'Клиент отклонил предложение',
+        session,
+        application,
+        'closed',
+        actor,
+        'Клиент отклонил предложение',
         audit_details={'offer_id': offer.id},
     )
     _change_offer_status(session, offer, 'declined')

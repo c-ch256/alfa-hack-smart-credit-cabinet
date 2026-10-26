@@ -56,38 +56,58 @@ def render_contract_pdf(contract: dict) -> bytes:
     right = ParagraphStyle('right', parent=body, alignment=TA_RIGHT)
     title = ParagraphStyle('title', parent=body, fontSize=18, leading=24, spaceAfter=10)
     heading = ParagraphStyle(
-        'heading', parent=body, fontSize=12, leading=17,
-        spaceBefore=15, spaceAfter=9, keepWithNext=True,
+        'heading',
+        parent=body,
+        fontSize=12,
+        leading=17,
+        spaceBefore=15,
+        spaceAfter=9,
+        keepWithNext=True,
     )
     subtitle = ParagraphStyle(
-        'subtitle', parent=body, fontSize=10, leading=14,
-        spaceBefore=10, spaceAfter=7, keepWithNext=True,
+        'subtitle',
+        parent=body,
+        fontSize=10,
+        leading=14,
+        spaceBefore=10,
+        spaceAfter=7,
+        keepWithNext=True,
     )
     notice = ParagraphStyle(
-        'notice', parent=body, fontSize=9, leading=14,
-        textColor=colors.HexColor('#9b361b'), backColor=colors.HexColor('#fff3d0'),
-        borderPadding=9, spaceBefore=13, spaceAfter=13,
+        'notice',
+        parent=body,
+        fontSize=9,
+        leading=14,
+        textColor=colors.HexColor('#9b361b'),
+        backColor=colors.HexColor('#fff3d0'),
+        borderPadding=9,
+        spaceBefore=13,
+        spaceAfter=13,
     )
 
     def paragraph(value: object, style: ParagraphStyle = body) -> Paragraph:
         # Значения профиля являются текстом, а не разметкой ReportLab.
         return Paragraph(escape(str(value)).replace('\n', '<br/>'), style)
 
-    table_style = TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), BACKGROUND),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('LINEBELOW', (0, 0), (-1, -1), 0.4, LINE),
-        ('LEFTPADDING', (0, 0), (-1, -1), 9),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 9),
-        ('TOPPADDING', (0, 0), (-1, -1), 7),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 7),
-    ])
+    table_style = TableStyle(
+        [
+            ('BACKGROUND', (0, 0), (-1, 0), BACKGROUND),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('LINEBELOW', (0, 0), (-1, -1), 0.4, LINE),
+            ('LEFTPADDING', (0, 0), (-1, -1), 9),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 9),
+            ('TOPPADDING', (0, 0), (-1, -1), 7),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 7),
+        ]
+    )
 
     def parameters(rows: list[tuple[str, str]], *, numeric: bool = False) -> Table:
         table = Table(
             [[paragraph('Параметр'), paragraph('Значение', right if numeric else body)]]
-            + [[paragraph(label), paragraph(value, right if numeric else body)]
-               for label, value in rows],
+            + [
+                [paragraph(label), paragraph(value, right if numeric else body)]
+                for label, value in rows
+            ],
             colWidths=[155, document.width - 155],
             repeatRows=1,
             splitByRow=1,
@@ -106,47 +126,60 @@ def render_contract_pdf(contract: dict) -> bytes:
     ]
     bank = contract['bank']
     borrower = contract['borrower']
-    story.append(parameters([
-        ('Наименование', bank['name']),
-        ('ИНН', bank['inn']),
-        ('ОГРН', bank['ogrn']),
-        ('Адрес', bank['legal_address']),
-        ('Расчётный счёт', bank['settlement_account']),
-        ('БИК', bank['bik']),
-        ('Корреспондентский счёт', bank['correspondent_account']),
-    ]))
+    story.append(
+        parameters(
+            [
+                ('Наименование', bank['name']),
+                ('ИНН', bank['inn']),
+                ('ОГРН', bank['ogrn']),
+                ('Адрес', bank['legal_address']),
+                ('Расчётный счёт', bank['settlement_account']),
+                ('БИК', bank['bik']),
+                ('Корреспондентский счёт', bank['correspondent_account']),
+            ]
+        )
+    )
     registration_label = 'ОГРН' if borrower['legal_form'] == 'OOO' else 'ОГРНИП'
     registration = borrower['ogrn'] if borrower['legal_form'] == 'OOO' else borrower['ogrnip']
-    story.extend([
-        paragraph('Заёмщик', subtitle),
-        parameters([
-            ('Наименование', borrower['name']),
-            ('ИНН', borrower['inn']),
-            (registration_label, registration or 'Не указан'),
-            ('Адрес', borrower['legal_address']),
-            ('Расчётный счёт', borrower['settlement_account']),
-            ('Банк', borrower['bank_name']),
-            ('БИК', borrower['bank_bik']),
-            ('Корреспондентский счёт', borrower['correspondent_account'] or 'Не указан'),
-        ]),
-        paragraph('Условия кредита', heading),
-        parameters([
-            ('Продукт', contract['product_name']),
-            ('Цель кредита', contract['purpose']),
-        ]),
-        Spacer(1, 8),
-        parameters([
-            ('Сумма кредита', _money(contract['amount_rub'])),
-            ('Годовая ставка', _rate(contract['annual_rate_percent'])),
-            ('Срок кредита', f'{contract["term_months"]} мес.'),
-            ('Ежемесячный платёж', _money(contract['monthly_payment_rub'])),
-            ('Всего платежей', _money(contract['total_payments_rub'])),
-            ('Переплата', _money(contract['overpayment_rub'])),
-        ], numeric=True),
-        paragraph('Порядок погашения', heading),
-        parameters([('Способ погашения', contract['repayment_method'])]),
-        paragraph('Залог', heading),
-    ])
+    story.extend(
+        [
+            paragraph('Заёмщик', subtitle),
+            parameters(
+                [
+                    ('Наименование', borrower['name']),
+                    ('ИНН', borrower['inn']),
+                    (registration_label, registration or 'Не указан'),
+                    ('Адрес', borrower['legal_address']),
+                    ('Расчётный счёт', borrower['settlement_account']),
+                    ('Банк', borrower['bank_name']),
+                    ('БИК', borrower['bank_bik']),
+                    ('Корреспондентский счёт', borrower['correspondent_account'] or 'Не указан'),
+                ]
+            ),
+            paragraph('Условия кредита', heading),
+            parameters(
+                [
+                    ('Продукт', contract['product_name']),
+                    ('Цель кредита', contract['purpose']),
+                ]
+            ),
+            Spacer(1, 8),
+            parameters(
+                [
+                    ('Сумма кредита', _money(contract['amount_rub'])),
+                    ('Годовая ставка', _rate(contract['annual_rate_percent'])),
+                    ('Срок кредита', f'{contract["term_months"]} мес.'),
+                    ('Ежемесячный платёж', _money(contract['monthly_payment_rub'])),
+                    ('Всего платежей', _money(contract['total_payments_rub'])),
+                    ('Переплата', _money(contract['overpayment_rub'])),
+                ],
+                numeric=True,
+            ),
+            paragraph('Порядок погашения', heading),
+            parameters([('Способ погашения', contract['repayment_method'])]),
+            paragraph('Залог', heading),
+        ]
+    )
     if contract['collateral_type']:
         collateral = [('Вид залога', contract['collateral_type'])]
         if contract['collateral_value_rub'] is not None:
@@ -159,27 +192,49 @@ def render_contract_pdf(contract: dict) -> bytes:
         'accepted': 'Предложение принято. Договор ещё не подписан.',
         'signed_demo': 'Подписан в демонстрационном режиме.',
     }
-    story.extend([
-        paragraph('Демо-подписание', heading),
-        parameters([('Состояние', signing_labels.get(
-            contract['signing_status'], 'Состояние демо-подписания не указано'
-        ))]),
-        PageBreak(),
-        paragraph('График платежей', heading),
-        paragraph(f'К договору № {contract["number"]} от {_date(contract["contract_date"])}'),
-        Spacer(1, 12),
-    ])
+    story.extend(
+        [
+            paragraph('Демо-подписание', heading),
+            parameters(
+                [
+                    (
+                        'Состояние',
+                        signing_labels.get(
+                            contract['signing_status'], 'Состояние демо-подписания не указано'
+                        ),
+                    )
+                ]
+            ),
+            PageBreak(),
+            paragraph('График платежей', heading),
+            paragraph(f'К договору № {contract["number"]} от {_date(contract["contract_date"])}'),
+            Spacer(1, 12),
+        ]
+    )
     small = ParagraphStyle('schedule', parent=body, fontSize=8.5, leading=12, alignment=TA_RIGHT)
     small_left = ParagraphStyle('schedule-left', parent=small, alignment=TA_LEFT)
     headers = ['№', 'Дата платежа', 'Платёж, ₽', 'Проценты, ₽', 'Основной долг, ₽', 'Остаток, ₽']
-    rows = [[paragraph(label, small_left if index == 1 else small)
-             for index, label in enumerate(headers)]]
+    rows = [
+        [
+            paragraph(label, small_left if index == 1 else small)
+            for index, label in enumerate(headers)
+        ]
+    ]
     for row in contract['schedule']:
-        values = [str(row['number']), _date(row['payment_date']),
-                  _money(row['payment_rub']), _money(row['interest_rub']),
-                  _money(row['principal_rub']), _money(row['balance_rub'])]
-        rows.append([paragraph(value, small_left if index == 1 else small)
-                     for index, value in enumerate(values)])
+        values = [
+            str(row['number']),
+            _date(row['payment_date']),
+            _money(row['payment_rub']),
+            _money(row['interest_rub']),
+            _money(row['principal_rub']),
+            _money(row['balance_rub']),
+        ]
+        rows.append(
+            [
+                paragraph(value, small_left if index == 1 else small)
+                for index, value in enumerate(values)
+            ]
+        )
     schedule = Table(
         rows,
         colWidths=[28, 77, 98, 96, 108, document.width - 407],
@@ -188,10 +243,14 @@ def render_contract_pdf(contract: dict) -> bytes:
         hAlign='LEFT',
     )
     schedule.setStyle(table_style)
-    schedule.setStyle(TableStyle([
-        ('TOPPADDING', (0, 0), (-1, -1), 5),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-    ]))
+    schedule.setStyle(
+        TableStyle(
+            [
+                ('TOPPADDING', (0, 0), (-1, -1), 5),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+            ]
+        )
+    )
     story.append(schedule)
 
     def decorate_page(pdf, _document) -> None:

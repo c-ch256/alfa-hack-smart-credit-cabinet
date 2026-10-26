@@ -235,8 +235,12 @@ class StaffApplicationResponse(ApplicationResponse):
 
 
 StaffWorkCategory = Literal[
-    'manual_review', 'needs_info', 'waiting_offer',
-    'staff_approved', 'staff_rejected', 'staff_offer_accepted',
+    'manual_review',
+    'needs_info',
+    'waiting_offer',
+    'staff_approved',
+    'staff_rejected',
+    'staff_offer_accepted',
 ]
 
 

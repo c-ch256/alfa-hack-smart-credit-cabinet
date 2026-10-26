@@ -3,15 +3,15 @@ import asyncio
 from types import SimpleNamespace
 
 import pytest
-from app.models import Application, AuditEvent, User
-from app.security import hash_password
-from app.services.staff import allowed_staff_actions
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 from test_applications import api, auth, company_id, create  # noqa: F401
 from test_staff import manual_application
+
+from app.models import Application, AuditEvent, User
+from app.security import hash_password
+from app.services.staff import allowed_staff_actions
 
 
 @pytest.mark.parametrize(

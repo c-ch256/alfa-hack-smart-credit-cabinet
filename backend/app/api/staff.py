@@ -28,7 +28,11 @@ from app.models import (
     StatusEvent,
     User,
 )
-from app.services.additional_info_history import info_responses, initial_request, saved_info_response
+from app.services.additional_info_history import (
+    info_responses,
+    initial_request,
+    saved_info_response,
+)
 from app.services.pricing import RISK_PREMIUM_PP
 from app.services.staff import (
     allowed_staff_actions,
@@ -285,7 +289,9 @@ async def get_staff_application(
         user.id: user.full_name
         for user in session.scalars(
             select(User).where(
-                User.id.in_({event.actor_user_id for event in events if event.actor_user_id is not None})
+                User.id.in_(
+                    {event.actor_user_id for event in events if event.actor_user_id is not None}
+                )
             )
         )
     }
@@ -520,12 +526,16 @@ async def staff_audit(
                     'comment_author_user_id': (
                         note.author_user_id
                         if note
-                        else decision.created_by_user_id if comment and decision else None
+                        else decision.created_by_user_id
+                        if comment and decision
+                        else None
                     ),
                     'comment_created_at': (
                         note.created_at
                         if note
-                        else decision.created_at if comment and decision else None
+                        else decision.created_at
+                        if comment and decision
+                        else None
                     ),
                     'offer_id': offer.id if offer else None,
                     'offer_terms': (

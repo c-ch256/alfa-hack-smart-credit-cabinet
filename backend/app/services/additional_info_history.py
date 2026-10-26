@@ -93,9 +93,11 @@ def initial_request(
 ) -> StaffInitialRequest | None:
     submission = min(
         (
-            event for event in history
+            event
+            for event in history
             if event.from_status == 'draft'
-            and event.to_status == 'submitted' and event.actor_role == 'CLIENT'
+            and event.to_status == 'submitted'
+            and event.actor_role == 'CLIENT'
         ),
         key=lambda event: event.sequence,
         default=None,
@@ -103,9 +105,7 @@ def initial_request(
     if submission is None:
         return None
     candidates = [
-        item
-        for item in snapshots
-        if item.data.get('initial_submission_event_id') == submission.id
+        item for item in snapshots if item.data.get('initial_submission_event_id') == submission.id
     ]
     if not candidates:
         # Before explicit links, draft edits saved every version without company
@@ -115,16 +115,24 @@ def initial_request(
             return None
         version = max(item.version for item in drafts) + 1
         candidates = [
-            item for item in snapshots
-            if item.version == version and 'company' in item.data
+            item
+            for item in snapshots
+            if item.version == version
+            and 'company' in item.data
             and item.created_at == submission.created_at
         ]
     if len(candidates) != 1:
         return None
     snapshot = candidates[0]
     fields = (
-        'product_code', 'amount', 'term_months', 'purpose', 'purpose_details',
-        'investment_object', 'collateral_type', 'collateral_value',
+        'product_code',
+        'amount',
+        'term_months',
+        'purpose',
+        'purpose_details',
+        'investment_object',
+        'collateral_type',
+        'collateral_value',
     )
     try:
         return StaffInitialRequest(

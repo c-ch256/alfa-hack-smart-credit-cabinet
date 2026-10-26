@@ -1,7 +1,8 @@
 import pytest
 import sqlalchemy as sa
-from alembic import command
 from test_models import migration_config, seed_application
+
+from alembic import command
 
 
 @pytest.mark.parametrize('legacy', [True, False])
@@ -16,13 +17,13 @@ def test_staff_comments_repair_preserves_rows(tmp_path, legacy: bool) -> None:
                 connection.execute(sa.text('DROP TABLE staff_comments'))
                 connection.execute(
                     sa.text(
-                        '''CREATE TABLE staff_comments (
+                        """CREATE TABLE staff_comments (
                     id INTEGER PRIMARY KEY,
                     application_id INTEGER NOT NULL REFERENCES applications(id),
                     author_user_id INTEGER NOT NULL REFERENCES users(id),
                     body VARCHAR(2000) NOT NULL,
                     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    CONSTRAINT ck_staff_comments_body_nonempty CHECK (length(trim(body)) > 0))'''
+                    CONSTRAINT ck_staff_comments_body_nonempty CHECK (length(trim(body)) > 0))"""
                     )
                 )
                 connection.execute(

@@ -153,7 +153,9 @@ class ApplicationResponse(BaseModel):
 
 class ActiveInfoRequest(BaseModel):
     request_event_id: int
-    fields: list[Literal['purpose_details', 'investment_object', 'collateral_type', 'collateral_value']]
+    fields: list[
+        Literal['purpose_details', 'investment_object', 'collateral_type', 'collateral_value']
+    ]
 
 
 class ClientApplicationDetailResponse(ApplicationResponse):

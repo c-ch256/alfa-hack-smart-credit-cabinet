@@ -347,7 +347,9 @@ def submit_and_process(
         transition(session, application, 'submitted', actor, 'Клиент отправил заявку')
         submission_id = session.scalar(
             select(StatusEvent.id)
-            .where(StatusEvent.application_id == application.id, StatusEvent.to_status == 'submitted')
+            .where(
+                StatusEvent.application_id == application.id, StatusEvent.to_status == 'submitted'
+            )
             .order_by(StatusEvent.sequence)
             .limit(1)
         )

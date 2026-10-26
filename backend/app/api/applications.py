@@ -10,8 +10,8 @@ from app.application_schemas import (
     ApplicationPatch,
     ApplicationResponse,
     ClientApplicationDetailResponse,
-    CompanyResponse,
     ClientProductResponse,
+    CompanyResponse,
     OfferResponse,
     ProductResponse,
     StatusEventResponse,
@@ -118,12 +118,14 @@ async def get_application(
     application = own_application(session, application_id, user)
     request_id, fields = (
         active_info_request(session, application_id)
-        if application.status == 'needs_info' else (None, None)
+        if application.status == 'needs_info'
+        else (None, None)
     )
     return ClientApplicationDetailResponse(
         **ApplicationResponse.model_validate(application).model_dump(),
         active_info_request={'request_event_id': request_id, 'fields': fields}
-        if request_id is not None and fields else None,
+        if request_id is not None and fields
+        else None,
     )
 
 

@@ -4,7 +4,15 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.application_schemas import ApplicationResponse
-from app.models import Application, ApplicationSnapshot, Company, Decision, Offer, Score, StatusEvent
+from app.models import (
+    Application,
+    ApplicationSnapshot,
+    Company,
+    Decision,
+    Offer,
+    Score,
+    StatusEvent,
+)
 from app.staff_schemas import StaffApplicationListResponse, StaffWorkCategory
 
 
@@ -39,11 +47,11 @@ def work_categories(
         and any(offer.kind == 'original' for offer in linked)
     ):
         return ['staff_approved']
-    changed_offers = [
-        offer for offer in linked if offer.kind in ('counter', 'alternative_product')
-    ]
+    changed_offers = [offer for offer in linked if offer.kind in ('counter', 'alternative_product')]
     if decision.decision == 'counter':
-        if status == 'counter_offer' and any(offer.status == 'proposed' for offer in changed_offers):
+        if status == 'counter_offer' and any(
+            offer.status == 'proposed' for offer in changed_offers
+        ):
             return ['waiting_offer']
         if status in ('accepted', 'signed_demo', 'disbursed_demo') and any(
             offer.status == 'accepted' for offer in changed_offers
@@ -69,8 +77,14 @@ def received_additional_info(status: str, history: list[StatusEvent]) -> bool:
         return False
     later = [event for event in history if event.sequence > reply]
     ended = {
-        'approved', 'rejected', 'counter_offer', 'accepted', 'signed_demo',
-        'disbursed_demo', 'closed', 'needs_info',
+        'approved',
+        'rejected',
+        'counter_offer',
+        'accepted',
+        'signed_demo',
+        'disbursed_demo',
+        'closed',
+        'needs_info',
     }
     return any(event.to_status == 'manual_review' for event in later) and not any(
         event.to_status in ended for event in later
@@ -132,7 +146,9 @@ def staff_list_rows(
                     application.status, history[application.id]
                 ),
                 work_categories=work_categories(
-                    application, decisions.get(application.id), offers[application.id],
+                    application,
+                    decisions.get(application.id),
+                    offers[application.id],
                     history[application.id],
                 ),
             )
