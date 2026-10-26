@@ -22,6 +22,7 @@ from app.models import (
     Offer,
     Product,
     Score,
+    StatusEvent,
     User,
 )
 from app.scoring.base import (
@@ -32,6 +33,7 @@ from app.scoring.base import (
     ScoringResult,
 )
 from app.scoring.selector import ScorerUnavailableError, select_scorer
+from app.services.additional_info_history import INFO_FIELDS, active_info_request
 from app.services.checks import CheckOutcome, run_checks
 from app.services.mocks import bki_by_inn, fns_by_inn
 from app.services.policy import (
@@ -107,7 +109,13 @@ def _technical_audit(session: Session, application: Application, phase: str) -> 
     session.flush()
 
 
-def _policy_audit(session: Session, application: Application, result: PolicyResult) -> None:
+def _policy_audit(
+    session: Session,
+    application: Application,
+    result: PolicyResult,
+    decision: Decision | None = None,
+    offer: Offer | None = None,
+) -> None:
     session.add(
         AuditEvent(
             actor_user_id=None,
@@ -120,7 +128,13 @@ def _policy_audit(session: Session, application: Application, result: PolicyResu
             result='success',
             correlation_id=uuid4().hex,
             rule_version=result.rule_version,
-            details={'decision': result.decision, 'reason_codes': list(result.reason_codes)},
+            details={
+                'status': application.status,
+                'decision': result.decision,
+                'decision_id': decision.id if decision else None,
+                'offer_id': offer.id if offer else None,
+                'reason_codes': list(result.reason_codes),
+            },
         )
     )
 
@@ -228,9 +242,9 @@ def _record_decision(
     snapshot: ApplicationSnapshot,
     result: PolicyResult,
     recorder: RecordingScorer | None,
-) -> None:
+) -> tuple[Decision | None, Offer | None]:
     if result.decision not in ('approve', 'counter', 'reject'):
-        return
+        return None, None
     score = None
     if recorder is not None:
         if result.offer is not None:
@@ -266,23 +280,25 @@ def _record_decision(
     )
     session.add(decision)
     session.flush()
+    offer_row = None
     if result.offer is not None:
         offered = result.offer
         if offered.product_code not in ('working_capital', 'investment'):
             raise AssessmentUnavailableError('offer product unavailable')
-        session.add(
-            Offer(
-                application_id=application.id,
-                decision_id=decision.id,
-                kind=offered.kind,
-                product_code=offered.product_code,
-                amount=offered.amount,
-                term_months=offered.term_months,
-                rate=offered.rate,
-                monthly_payment=offered.monthly_payment,
-                created_by='SYSTEM',
-            )
+        offer_row = Offer(
+            application_id=application.id,
+            decision_id=decision.id,
+            kind=offered.kind,
+            product_code=offered.product_code,
+            amount=offered.amount,
+            term_months=offered.term_months,
+            rate=offered.rate,
+            monthly_payment=offered.monthly_payment,
+            created_by='SYSTEM',
         )
+        session.add(offer_row)
+        session.flush()
+    return decision, offer_row
 
 
 def _claim_retry(session: Session, application: Application) -> None:
@@ -329,11 +345,20 @@ def submit_and_process(
     application = own_application(session, application_id, actor)
     if application.status == 'draft':
         transition(session, application, 'submitted', actor, 'Клиент отправил заявку')
+        submission_id = session.scalar(
+            select(StatusEvent.id)
+            .where(StatusEvent.application_id == application.id, StatusEvent.to_status == 'submitted')
+            .order_by(StatusEvent.sequence)
+            .limit(1)
+        )
         company = session.get(Company, application.company_id)
         snapshot = ApplicationSnapshot(
             application_id=application.id,
             version=application.version,
-            data=_snapshot_data(application, company, datetime.now(UTC).date()),
+            data={
+                **_snapshot_data(application, company, datetime.now(UTC).date()),
+                'initial_submission_event_id': submission_id,
+            },
         )
         session.add(snapshot)
         session.flush()
@@ -373,8 +398,44 @@ def add_information_and_process(
         )
     if application.version != payload.version:
         raise ApiError(409, 'CONCURRENT_UPDATE', 'Заявка была изменена')
-    changed = payload.model_dump(exclude_unset=True, exclude={'version'})
+    changed = payload.model_dump(exclude_unset=True, exclude={'version', 'request_event_id'})
+    request_event_id, requested_fields = active_info_request(session, application.id)
+    if payload.request_event_id is not None and payload.request_event_id != request_event_id:
+        raise ApiError(409, 'CONCURRENT_UPDATE', 'Запрос сведений изменился')
+    if (
+        payload.request_event_id is not None
+        and requested_fields is not None
+        and not set(changed) <= set(requested_fields)
+    ):
+        raise ApiError(422, 'INVALID_INFO_FIELDS', 'Передайте только запрошенные сведения')
+    changes = []
+    for name, value in changed.items():
+        before = getattr(application, 'info_response' if name == 'message' else name)
+        if before != value:
+            changes.append({'field': name, 'before': before, 'after': value})
     transition(session, application, 'checking', actor, 'Клиент дослал сведения')
+    session.flush()
+    response_event = session.scalar(
+        select(AuditEvent)
+        .where(
+            AuditEvent.application_id == application.id,
+            AuditEvent.action == 'application.checking',
+            AuditEvent.actor_user_id == actor.id,
+            AuditEvent.actor_role == 'CLIENT',
+        )
+        .order_by(AuditEvent.id.desc())
+        .limit(1)
+    )
+    response_event.details = {
+        **response_event.details,
+        'additional_info': {
+            'request_event_id': request_event_id,
+            'response_event_id': response_event.id,
+            'answered_at': response_event.created_at.isoformat(),
+            'requested_fields': requested_fields,
+            'changes': changes,
+        },
+    }
     for name, value in changed.items():
         setattr(application, 'info_response' if name == 'message' else name, value)
     application.info_request = None
@@ -441,14 +502,33 @@ def process_application(
             if preliminary.decision == 'needs_info':
                 application.info_request = preliminary.rationale[0]
                 transition(
-                    session, application, 'needs_info', None, 'Требуются дополнительные сведения'
+                    session,
+                    application,
+                    'needs_info',
+                    None,
+                    'Требуются дополнительные сведения',
+                    audit_details={
+                        'requested_fields': [
+                            name
+                            for name in checks['DATA'].payload.get('missing_fields', [])
+                            if name in INFO_FIELDS
+                        ]
+                    },
                 )
             else:
-                _record_decision(session, application, snapshot, preliminary, None)
+                decision, offer = _record_decision(
+                    session, application, snapshot, preliminary, None
+                )
                 transition(
                     session, application, 'rejected', None, 'Решение по демонстрационным правилам'
                 )
-            _policy_audit(session, application, preliminary)
+            _policy_audit(
+                session,
+                application,
+                preliminary,
+                decision if preliminary.decision == 'reject' else None,
+                offer if preliminary.decision == 'reject' else None,
+            )
             return application
         transition(session, application, 'scoring', None, 'Начата оценка заявки')
     else:
@@ -497,7 +577,7 @@ def process_application(
         application.assigned_staff_user_id = staff_id
         session.flush()
     transition(session, application, 'decision', None, 'Оценка заявки завершена')
-    _record_decision(session, application, snapshot, result, recorder)
+    decision, offer = _record_decision(session, application, snapshot, result, recorder)
     destination = {
         'approve': 'approved',
         'counter': 'counter_offer',
@@ -505,5 +585,5 @@ def process_application(
         'reject': 'rejected',
     }[result.decision]
     transition(session, application, destination, None, 'Решение по демонстрационным правилам')
-    _policy_audit(session, application, result)
+    _policy_audit(session, application, result, decision, offer)
     return application

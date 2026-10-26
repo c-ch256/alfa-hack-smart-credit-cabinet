@@ -47,6 +47,7 @@ class ApplicationPatch(StrictInput):
 
 class AdditionalInfo(StrictInput):
     version: int = Field(strict=True, ge=1)
+    request_event_id: int | None = Field(default=None, strict=True, gt=0)
     message: str | None = Field(default=None, max_length=2000)
     purpose_details: str | None = Field(default=None, max_length=2000)
     investment_object: str | None = Field(default=None, max_length=255)
@@ -57,7 +58,7 @@ class AdditionalInfo(StrictInput):
 
     @model_validator(mode='after')
     def has_details(self) -> 'AdditionalInfo':
-        fields = self.model_dump(exclude_unset=True, exclude={'version'})
+        fields = self.model_dump(exclude_unset=True, exclude={'version', 'request_event_id'})
         if not fields or any(
             value is None or isinstance(value, str) and not value.strip()
             for value in fields.values()
@@ -73,6 +74,12 @@ class CompanyResponse(BaseModel):
     name: str
     inn: str
     legal_form: str
+    registration_number: str | None
+    legal_address: str | None
+    settlement_account: str | None
+    bank_bik: str | None
+    bank_name: str | None
+    correspondent_account: str | None
     okved: str
     industry: str | None
     region: str
@@ -95,6 +102,10 @@ class ProductResponse(BaseModel):
     min_term_months: int
     max_term_months: int
     margin_pp: Decimal
+
+
+class ClientProductResponse(ProductResponse):
+    indicative_rate_min: Decimal
 
 
 class ApplicationResponse(BaseModel):
@@ -138,6 +149,15 @@ class ApplicationResponse(BaseModel):
             'closed': 'Закрыта',
         }
         return labels[self.status]
+
+
+class ActiveInfoRequest(BaseModel):
+    request_event_id: int
+    fields: list[Literal['purpose_details', 'investment_object', 'collateral_type', 'collateral_value']]
+
+
+class ClientApplicationDetailResponse(ApplicationResponse):
+    active_info_request: ActiveInfoRequest | None
 
 
 class StatusEventResponse(BaseModel):

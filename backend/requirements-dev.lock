@@ -36,7 +36,9 @@ certifi==2026.10.19
 cffi==2.1.1
     # via argon2-cffi-bindings
 charset-normalizer==3.5.2
-    # via requests
+    # via
+    #   reportlab
+    #   requests
 click==8.5.0
     # via uvicorn
 cloudpickle==3.1.2
@@ -105,6 +107,8 @@ packaging==26.3
     #   pytest
 pandas==3.0.6
     # via smart-credit-cabinet-backend (backend/pyproject.toml)
+pillow==13.0.0
+    # via reportlab
 pip-api==0.0.35
     # via pip-audit
 pip-audit==2.10.1
@@ -149,6 +153,8 @@ referencing==0.37.0
     # via
     #   jsonschema
     #   jsonschema-specifications
+reportlab==4.4.9
+    # via smart-credit-cabinet-backend (backend/pyproject.toml)
 requests==2.34.2
     # via
     #   cachecontrol

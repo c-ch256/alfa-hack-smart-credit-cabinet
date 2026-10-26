@@ -55,8 +55,8 @@
 | `refinance` | Рефинансирование (Could) | 500 тыс – 50 млн ₽ | 12–60 мес. | +3,5 п.п. | Клиент выбирает кредиты из данных БКИ; выгода = снижение платежа |
 | `overdraft` | Овердрафт (Could) | лимит 100 тыс – 10 млн ₽ | до 12 мес. | +5,0 п.п. | В MVP — карточка «скоро» |
 
-**Демонстрационное допущение MVP:** расчётная ставка = заданное в `.env` значение `KEY_RATE` + маржа продукта + надбавка за группу риска (A +0; B +1,5; C +3; D +5 п.п.). Это учебные условия, не тарифы Альфа-Банка и не подключение к ЦБ. Платёж — аннуитетный, формула одна на бэке и фронте:
-`payment = amount · r / (1 − (1 + r)^−n)`, где `r = rate / 12 / 100`, `n` — срок в месяцах. Деньги — **целые рубли**.
+**Демонстрационное допущение MVP:** базовая ставка `KEY_RATE=14.00` годовых по умолчанию; расчётная ставка = заданное в `.env` значение `KEY_RATE` + маржа продукта + надбавка за группу риска (A +0; B +1,5; C +3; D +5 п.п.). Это учебные условия, не тарифы Альфа-Банка и не подключение к ЦБ. Платёж — аннуитетный, формула одна на бэке и фронте:
+`payment = amount · r / (1 − (1 + r)^−n)`, где `r = rate / 12 / 100`, `n` — срок в месяцах. Деньги — **целые рубли**. Для группы A это 18% по оборотному и 17% по инвестиционному кредиту. Изменение `KEY_RATE` действует только для новых предложений; ранее созданные предложения и договоры сохраняют записанную ставку.
 
 ## 7. Главный UX-принцип: не спрашивать то, что банк уже знает
 Клиент действующий, поэтому данные компании **подставляются** и показываются блоком «Данные из банка — вводить не нужно»:
@@ -71,7 +71,7 @@
 
 | Кто | Переходы |
 |---|---|
-| CLIENT | draft→submitted · draft→closed · needs_info→checking (дослал сведения) · needs_info→closed · approved→accepted · approved→closed · counter_offer→accepted · counter_offer→closed · accepted→signed_demo |
+| CLIENT | draft→submitted · draft→closed · needs_info→checking (дослал сведения) · needs_info→closed · manual_review→closed (отзыв заявки) · approved→accepted · approved→closed · counter_offer→accepted · counter_offer→closed · accepted→signed_demo |
 | SYSTEM | submitted→checking · checking→scoring · checking→needs_info · checking→rejected (стоп-фактор) · scoring→decision · decision→{approved, counter_offer, manual_review, rejected} · signed_demo→disbursed_demo |
 | STAFF | manual_review→{approved, counter_offer, rejected, needs_info} |
 
@@ -129,14 +129,14 @@ Python-интерфейс в backend: `Scorer.score(req: ScoringRequest) -> Scor
 - **Каталог и подбор**: `GET /products` · `GET /me/companies` · `POST /recommendations` `{company_id, purpose_category, amount, term_months}` → продукты по убыванию соответствия: причины, ориентир ставки и платежа, предварительная нагрузка, подсказка суммы
 - **Заявки клиента**: `GET /applications` · `POST /applications` (заголовок `Idempotency-Key`) · `GET /applications/{id}` · `GET /applications/{id}/history` · `PATCH /applications/{id}` (только draft, иначе 409) · `POST /applications/{id}/submit` · `POST /applications/{id}/additional-info` · `POST /applications/{id}/withdraw`
 - **Предложения и подписание**: `GET /applications/{id}/offers` · `POST /offers/{id}/accept` · `POST /offers/{id}/decline` · `POST /applications/{id}/sign-demo/code` · `POST /applications/{id}/sign-demo` `{code}`
-- **Сотрудник**: `GET /staff/applications?status=` · `GET /staff/applications/{id}` · `POST /staff/applications/{id}/decision` `{decision: approve|counter|reject, amount?, term_months?, product_code?, comment}` (комментарий обязателен) · `POST /staff/applications/{id}/request-info` `{message}` · `GET /staff/audit?application_id=`
+- **Сотрудник**: `GET /staff/products` · `POST /staff/loan-preview` `{application_id, product_code, amount, term_months}` (ориентировочный расчёт по сохранённому снимку) · `GET /staff/applications?status=` · `GET /staff/applications/{id}` · `GET|POST /staff/applications/{id}/comments` (внутренние заметки только STAFF, без изменения статуса) · `POST /staff/applications/{id}/decision` `{decision: approve|counter|reject, amount?, term_months?, product_code?, comment}` (комментарий обязателен) · `POST /staff/applications/{id}/request-info` `{fields, comment}` (поля анкеты и внутреннее основание; публичный текст по шаблонам) · `GET /staff/audit?application_id=`. Просмотр и журнал доступны для всех отправленных заявок; ручные действия только назначенному сотруднику из `manual_review`.
 - **Could**: `POST /assistant/chat`
 - **Система**: `GET /health`
 - **Ошибки**: 401 — нет или просрочен токен; 403 — не та роль; **404 — чужая заявка или компания** (не раскрываем существование); 409 — недопустимый переход; 422 — валидация с понятным текстом на русском; 429 — лимит попыток входа. Формат: `{"detail": "...", "code": "..."}`.
 - Поля — `snake_case`, даты — ISO 8601 UTC, деньги — целые рубли.
 
 ## 12. Модель данных
-`users` (login, password_hash, role, full_name, position) → `companies` (профиль + агрегаты выписки) → `applications` (number, product_code, status, amount, term_months, purpose, purpose_details, investment_object, collateral_type, collateral_value, info_request, info_response, idempotency_key, sign_code_hash, sign_code_expires_at, timestamps) → `check_results` (DATA | FNS | BKI; ok | warn | fail; summary; payload) · `scores` (pd, risk_band, model_version, reasons, features) · `offers` (kind: original | counter | alternative_product; product_code, amount, term_months, rate, monthly_payment; status: proposed | accepted | declined | superseded; created_by: SYSTEM | STAFF) · `status_events` · `audit_events` (actor, action, application_id, details — включая просмотр карточки сотрудником). Could: `refinance_items`.
+`users` (login, password_hash, role, full_name, position) → `companies` (профиль + агрегаты выписки) → `applications` (number, product_code, status, amount, term_months, purpose, purpose_details, investment_object, collateral_type, collateral_value, info_request, info_response, idempotency_key, sign_code_hash, sign_code_expires_at, timestamps) → `check_results` (DATA | FNS | BKI; ok | warn | fail; summary; payload) · `scores` (pd, risk_band, model_version, reasons, features) · `offers` (kind: original | counter | alternative_product; product_code, amount, term_months, rate, monthly_payment; status: proposed | accepted | declined | superseded; created_by: SYSTEM | STAFF) · `status_events` · `audit_events` (actor, action, application_id, details — включая просмотр карточки сотрудником) · `staff_comments` (заявка, сотрудник, текст, время; только внутреннее чтение STAFF). Could: `refinance_items`.
 
 ## 13. Демо-профили (сиды) — покрывают все исходы
 | Учётка | Компания | Профиль | Сценарий → исход |
