@@ -1,0 +1,14 @@
+.staff-detail-history { max-height: 340px; padding: 4px 12px 2px 3px; margin: 14px 0 0; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #959eaa #f3f4f6; list-style: none; }
+.staff-detail-history li { position: relative; padding: 0 0 16px 29px; }
+.staff-detail-history li::before { content: ''; position: absolute; top: 14px; bottom: -6px; left: 5px; width: 1px; background: #dfe3e8; }
+.staff-detail-history li:last-child { padding-bottom: 2px; }
+.staff-detail-history li:last-child::before { display: none; }
+.staff-detail-history-dot { position: absolute; top: 5px; left: 0; width: 11px; height: 11px; border-radius: 50%; background: #d6dbe2; }
+.staff-detail-history .is-latest .staff-detail-history-dot { background: #ef3124; }
+.staff-detail-history strong { display: block; margin-bottom: 3px; font-size: 15px; font-weight: 500; }
+.staff-detail-history time, .staff-detail-history li > span:not(.staff-detail-history-dot) { display: block; color: #6d7986; font-size: 14px; }
+.staff-detail-history p { margin: 4px 0 0; font-size: 14px; }
+
+.staff-status-history-compact { max-height: 260px; margin: 12px 0 0; }
+.staff-status-history-compact strong { font-size: 14px; }
+.staff-status-history-compact time { font-size: 12px; }

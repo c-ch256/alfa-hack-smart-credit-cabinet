@@ -1,0 +1,7 @@
+.staff-notification-anchor .staff-notifications { position: relative; display: inline-flex; align-items: center; justify-content: center; }
+.staff-unread-indicator { position: absolute; top: 5px; right: 5px; width: 7px; height: 7px; border: 2px solid #101014; border-radius: 50%; background: #ef3124; box-sizing: content-box; }
+.staff-notification-panel { right: 0; white-space: normal; }
+.staff-notification-panel .client-notice-copy > span[title] { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 600px) {
+  .staff-notification-panel { position: fixed; top: 100px; right: 12px; max-width: calc(100vw - 24px); }
+}

@@ -1,0 +1,12 @@
+.staff-info-response { padding: 0 0 14px; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.staff-info-response + .staff-info-response { padding-top: 14px; border-top: 1px solid #e7e8eb; }
+.staff-info-answer-date { margin: 0 0 10px; color: #6d7986; font-size: 14px; }
+.staff-info-requested-label { margin: 10px 0 6px; font-weight: 500; }
+.staff-info-response ul { margin: 0 0 12px; padding-left: 20px; }
+.staff-info-table-scroll { overflow-x: auto; border: 1px solid #e7e8eb; border-radius: 10px; }
+.staff-info-table { width: 100%; min-width: 320px; border-collapse: collapse; table-layout: fixed; font: inherit; }
+.staff-info-table :is(th, td) { padding: 10px 12px; text-align: left; vertical-align: top; border-bottom: 1px solid #e7e8eb; overflow-wrap: anywhere; white-space: pre-wrap; }
+.staff-info-table thead th { background: #f3f4f5; color: #6d7986; font-weight: 500; }
+.staff-info-table tbody th { font-weight: 500; }
+.staff-info-table tbody tr:last-child :is(th, td) { border-bottom: 0; }
+.staff-info-table-scroll:focus-visible { outline: 2px solid #6d7986; outline-offset: 2px; }
